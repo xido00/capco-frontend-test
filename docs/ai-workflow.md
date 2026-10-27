@@ -46,3 +46,15 @@ This project was built with Claude Code as a pair programmer. This log records h
 - **Refactor before the second form:** registration and sign-in share error handling, so it moved into `useFormFeedback` first, in its own commit, with registration tests unchanged.
 - **Verification:** unit tests for every API outcome and the pending state, axe checks, and e2e tests that check the stored session cookies and the invalid-credentials path against the real backend.
 - **My review comment (on #4):** sign-in should never show password shape errors. The AI checked the backend and confirmed the sign-in endpoint returns the registration policy message for short passwords. Such passwords now get the generic invalid-credentials message. Unit and e2e tests cover it against the real API.
+
+### Save and resume (TICKET-003)
+
+- **Decisions I made:** show document evidence state but leave upload out of scope; on a version conflict keep the entered values and offer "Reload saved answers"; "Save" plus "Save and continue".
+- **Contract details the AI surfaced before coding:** authenticated writes need the `X-XSRF-TOKEN` header, saves are per step and partial, an empty value deletes an answer, and the app had no sign-out although the acceptance criteria need one.
+- **Design risks caught in review of AI's own plan:**
+  - Saving with the version from the query cache would let a background refetch silently overwrite changes made elsewhere. The form keeps the version its edits started from.
+  - Date inputs would blank dates stored in another format, and the next save would delete them. Dates stay text fields with a format hint.
+- **AI mistakes caught:**
+  - A test helper was committed after lint and tests but without typecheck. Fixed in a follow-up commit; since then `npm run quality` runs before every commit.
+  - The abort check used `instanceof DOMException`, which fails across realms (fetch vs jsdom); a unit test caught it.
+- **Verification:** unit tests for every acceptance criterion and error path (load, save, version, conflict, 401/403/422, sign-out), axe checks, and an e2e test that saves, signs out, signs in and finds every answer through the real API.
