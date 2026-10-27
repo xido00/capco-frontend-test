@@ -332,6 +332,9 @@ describe('Application step page', () => {
       await screen.findByDisplayValue('Changed elsewhere'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Personal details' }),
+    ).toHaveFocus()
   })
 
   it.each([
@@ -386,9 +389,11 @@ describe('Application step page', () => {
       await screen.findByRole('button', { name: 'Save and continue' }),
     )
 
-    expect(
-      await screen.findByRole('heading', { name: 'Identity and address' }),
-    ).toBeInTheDocument()
+    const heading = await screen.findByRole('heading', {
+      name: 'Identity and address',
+    })
+    // Focus moves to the new step instead of falling to the document body.
+    expect(heading).toHaveFocus()
     expect(field('Document type')).toHaveValue('Passport')
   })
 
