@@ -58,3 +58,18 @@ export function validateRegistration(
   }
   return errors
 }
+
+export type SignInField = 'email' | 'password'
+export type SignInValues = Record<SignInField, string>
+export type SignInErrors = Partial<Record<SignInField, string>>
+
+/**
+ * Sign-in only checks that both fields are filled in: the API decides whether
+ * credentials are valid and reports malformed input itself.
+ */
+export function validateSignIn(values: SignInValues): SignInErrors {
+  return {
+    ...(values.email.trim() ? {} : { email: 'Enter your email address' }),
+    ...(values.password ? {} : { password: 'Enter your password' }),
+  }
+}
