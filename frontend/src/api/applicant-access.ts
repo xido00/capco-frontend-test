@@ -1,6 +1,5 @@
-import { z } from 'zod'
-
-import { jsonApiRequest } from './json-api-client'
+import { unwrap } from './api-error'
+import { apiClient } from './client'
 
 export interface ApplicantCredentials {
   email: string
@@ -11,9 +10,9 @@ export interface ApplicantCredentials {
 export async function createApplicantAccount(
   credentials: ApplicantCredentials,
 ): Promise<void> {
-  await jsonApiRequest('/api/v1/applicant-accounts', {
-    method: 'POST',
-    body: { data: { type: 'applicant-accounts', attributes: credentials } },
-    responseSchema: z.unknown(),
-  })
+  await unwrap(
+    apiClient.POST('/api/v1/applicant-accounts', {
+      body: { data: { type: 'applicant-accounts', attributes: credentials } },
+    }),
+  )
 }
