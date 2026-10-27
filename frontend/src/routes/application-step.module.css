@@ -19,6 +19,13 @@
 .stepForm.stepForm {
   gap: 16px;
 }
+.saveStatus:empty {
+  display: none;
+}
+.saveStatus {
+  color: #1b5e20;
+  font-weight: 600;
+}
 .formActions.formActions {
   align-items: center;
   justify-content: space-between;

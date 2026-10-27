@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 
 import type { ErrorSummaryFieldError } from '@kyc/ui'
@@ -8,7 +8,7 @@ export type FieldErrors<Field extends string> = Partial<Record<Field, string>>
 export interface FormFeedback<Field extends string> {
   fieldErrors: FieldErrors<Field>
   /** Error not tied to a field. */
-  message?: string
+  message?: ReactNode
 }
 
 /**
