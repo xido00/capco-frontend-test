@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { apiPaths, errorResponse } from '../test/api-fixtures'
 import { server } from '../test/server'
@@ -242,6 +242,27 @@ describe('CreateAccountForm', () => {
     expect(
       await screen.findByRole('heading', { name: 'Account created' }),
     ).toBeInTheDocument()
+  })
+
+  it('blocks resubmitting until the Retry-After wait has passed', async () => {
+    let requests = 0
+    server.use(
+      http.post(accountsPath, () => {
+        requests += 1
+        return errorResponse(429, 'rate-limited', { 'Retry-After': '1' })
+      }),
+    )
+    const { user } = renderForm()
+    await fillValidForm(user)
+    const button = screen.getByRole('button', { name: 'Create account' })
+
+    await user.click(button)
+    await screen.findByRole('alert')
+    expect(button).toBeDisabled()
+    await user.keyboard('{Enter}')
+    expect(requests).toBe(1)
+
+    await vi.waitFor(() => expect(button).toBeEnabled(), { timeout: 2000 })
   })
 
   it('has no automated accessibility violations while showing errors', async () => {

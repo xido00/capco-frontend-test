@@ -22,6 +22,7 @@ import {
 } from './-applicant-credentials'
 import { useFormFeedback, type FormFeedback } from './-form-feedback'
 import { accountAccessHref, isSafeJourneyPath } from './-return-target'
+import { useRetryAfter } from './-use-retry-after'
 import styles from './account-access.module.css'
 
 export interface SignInFormProps {
@@ -49,6 +50,7 @@ export function SignInForm({ returnTo, onSuccess }: SignInFormProps) {
   const { fieldErrors, setFieldErrors, showFeedback, summaryProps } =
     useFormFeedback(fieldIds)
   const queryClient = useQueryClient()
+  const retryAfter = useRetryAfter()
   const signIn = useMutation({ mutationFn: createApplicantSession })
   const createAccountHref = accountAccessHref('/create-account', returnTo)
 
@@ -64,7 +66,7 @@ export function SignInForm({ returnTo, onSuccess }: SignInFormProps) {
   }
 
   function submit() {
-    if (signIn.isPending) {
+    if (signIn.isPending || retryAfter.isWaiting) {
       return
     }
     setHasSubmitted(true)
@@ -83,6 +85,7 @@ export function SignInForm({ returnTo, onSuccess }: SignInFormProps) {
           onSuccess(isSafeJourneyPath(href) ? href : defaultJourney)
         },
         onError: (error) => {
+          retryAfter.waitIfRateLimited(error)
           if (isRejectedCredentials(error)) {
             setValues((current) => ({ ...current, password: '' }))
           }
@@ -141,6 +144,7 @@ export function SignInForm({ returnTo, onSuccess }: SignInFormProps) {
             <Button
               className={styles.submit}
               fullWidth
+              isDisabled={retryAfter.isWaiting}
               isPending={signIn.isPending}
               size="large"
               type="submit"

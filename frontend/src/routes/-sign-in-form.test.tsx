@@ -293,6 +293,27 @@ describe('SignInForm', () => {
     await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
   })
 
+  it('blocks resubmitting until the Retry-After wait has passed', async () => {
+    let requests = 0
+    server.use(
+      http.post(sessionsPath, () => {
+        requests += 1
+        return errorResponse(429, 'rate-limited', { 'Retry-After': '1' })
+      }),
+    )
+    const { user } = renderForm()
+    await fillForm(user)
+    const button = screen.getByRole('button', { name: 'Sign in' })
+
+    await user.click(button)
+    await screen.findByRole('alert')
+    expect(button).toBeDisabled()
+    await user.keyboard('{Enter}')
+    expect(requests).toBe(1)
+
+    await vi.waitFor(() => expect(button).toBeEnabled(), { timeout: 2000 })
+  })
+
   it('has no automated accessibility violations while showing errors', async () => {
     const { user, container } = renderForm()
     await user.click(submitButton())
