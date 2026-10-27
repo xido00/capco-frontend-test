@@ -23,6 +23,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      - name: Check generated API types match openapi.json
+        run: |
+          npm run generate:api --workspace frontend
+          git diff --exit-code -- frontend/src/api/schema.d.ts
       - run: npm run quality
 
   e2e:
