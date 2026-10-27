@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { Button } from './Button'
 import { Checkbox } from './Checkbox'
+import { ConfirmDialog } from './ConfirmDialog'
 import { ErrorSummary } from './ErrorSummary'
 import {
   Alert,
@@ -74,6 +75,10 @@ export const TextInputInvalid: Story = {
 export const CheckboxStory: Story = {
   name: 'Checkbox',
   render: () => <CheckboxDemo />,
+}
+export const ConfirmDialogStory: Story = {
+  name: 'ConfirmDialog',
+  render: () => <ConfirmDialogDemo />,
 }
 export const ErrorSummaryFields: Story = {
   name: 'ErrorSummary / field errors',
@@ -189,5 +194,24 @@ function CheckboxDemo() {
     <Checkbox isSelected={isSelected} onChange={setSelected}>
       I confirm these details are accurate and belong to me.
     </Checkbox>
+  )
+}
+
+function ConfirmDialogDemo() {
+  const [isOpen, setOpen] = useState(false)
+  return (
+    <>
+      <Button onPress={() => setOpen(true)}>Leave page</Button>
+      <ConfirmDialog
+        isOpen={isOpen}
+        title="Leave without saving?"
+        confirmLabel="Leave without saving"
+        cancelLabel="Stay on this page"
+        onConfirm={() => setOpen(false)}
+        onCancel={() => setOpen(false)}
+      >
+        Your changes on this page have not been saved.
+      </ConfirmDialog>
+    </>
   )
 }
