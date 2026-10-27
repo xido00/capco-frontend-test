@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { http, HttpResponse, type JsonBodyType } from 'msw'
 import { createRoutesStub, useParams } from 'react-router'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { jsonApiMediaType } from '../../api/client'
 import { server } from '../../test/server'
@@ -155,6 +155,44 @@ describe('Application step page', () => {
     expect(screen.getByRole('checkbox')).not.toBeChecked()
   })
 
+  it('flags unsaved changes from the first edit and clears the flag when undone', async () => {
+    server.use(http.get(formPath, () => json(formDocument())))
+    const { user } = renderStep()
+    const name = await screen.findByRole('textbox', { name: 'Name' })
+
+    expect(status()).toBeEmptyDOMElement()
+    await user.type(name, 'x')
+    expect(status()).toHaveTextContent('You have unsaved changes.')
+
+    await user.type(name, '{Backspace}')
+    expect(status()).toBeEmptyDOMElement()
+  })
+
+  it('keeps edits made while a save is in flight marked as unsaved', async () => {
+    let release: () => void = () => {}
+    server.use(
+      http.get(formPath, () => json(formDocument())),
+      http.patch(formPath, async () => {
+        await new Promise<void>((resolve) => (release = resolve))
+        return json(formDocument(savedAnswers, 5))
+      }),
+    )
+    const { user } = renderStep()
+    const name = await screen.findByRole('textbox', { name: 'Name' })
+    await user.type(name, '!')
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.type(name, '?')
+    release()
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute(
+        'aria-disabled',
+      ),
+    )
+    expect(status()).toHaveTextContent('You have unsaved changes.')
+  })
+
   it('saves the step answers with the loaded version and confirms only after the API succeeds', async () => {
     let body: unknown
     let release: () => void = () => {}
@@ -177,7 +215,7 @@ describe('Application step page', () => {
       'aria-disabled',
       'true',
     )
-    expect(status()).not.toHaveTextContent('saved')
+    expect(status()).toHaveTextContent('You have unsaved changes.')
     release()
     expect(await screen.findByText('Your answers have been saved.')).toBe(
       status(),
@@ -253,7 +291,7 @@ describe('Application step page', () => {
     expect(alert).toHaveTextContent('Something went wrong on our side.')
     expect(alert.parentElement).toHaveFocus()
     expect(name).toHaveValue('Ada King')
-    expect(status()).toHaveTextContent('')
+    expect(status()).toHaveTextContent('You have unsaved changes.')
 
     await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(
