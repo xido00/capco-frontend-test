@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { http, HttpResponse } from 'msw'
 import { createRoutesStub, useParams } from 'react-router'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { queryClient as sharedQueryClient } from '../../query-client'
 import {
   apiPaths,
   applicationId,
@@ -16,7 +17,7 @@ import {
 } from '../../test/api-fixtures'
 import { server } from '../../test/server'
 
-import ApplicationStepPage from './$applicationId/$step'
+import ApplicationStepPage, { clientLoader } from './$applicationId/$step'
 
 import type { ApplicationAnswers } from '../../api/applications'
 import type { ComponentProps } from 'react'
@@ -387,5 +388,41 @@ describe('Application step page', () => {
     await screen.findByRole('textbox', { name: 'Name' })
 
     expect(await axe(container)).toHaveNoViolations()
+  })
+})
+
+describe('Application step loader', () => {
+  afterEach(() => sharedQueryClient.clear())
+
+  function load(step: string) {
+    return clientLoader({
+      params: { applicationId, step },
+    } as unknown as Parameters<typeof clientLoader>[0])
+  }
+
+  it('loads the saved answers before the page renders', async () => {
+    server.use(http.get(formPath, () => jsonApiResponse(formDocument())))
+
+    await load('personal-details')
+
+    expect(
+      sharedQueryClient.getQueryData(['applications', applicationId, 'form']),
+    ).toEqual(formDocument().data)
+  })
+
+  it('leaves load failures to the page instead of throwing', async () => {
+    server.use(
+      http.get(formPath, () => errorResponse(401, 'authentication-required')),
+    )
+
+    await expect(load('personal-details')).resolves.toBeNull()
+  })
+
+  it('rejects unknown steps with 404', async () => {
+    const thrown: unknown = await load('unknown-step').catch(
+      (error: unknown) => error,
+    )
+
+    expect(thrown).toMatchObject({ init: { status: 404 } })
   })
 })
