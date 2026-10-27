@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, type JsonBodyType } from 'msw'
 import { createRoutesStub } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
@@ -42,7 +42,7 @@ function applicationDocument(
   }
 }
 
-function json(body: unknown, status = 200) {
+function json(body: JsonBodyType, status = 200) {
   return HttpResponse.json(body, {
     status,
     headers: { 'Content-Type': jsonApiMediaType },
