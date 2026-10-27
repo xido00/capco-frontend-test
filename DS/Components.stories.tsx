@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { Button } from './Button'
+import { Checkbox } from './Checkbox'
 import { ErrorSummary } from './ErrorSummary'
 import {
   Alert,
@@ -69,6 +70,10 @@ export const TextInputInvalid: Story = {
       errorMessage="Enter a valid tax ID."
     />
   ),
+}
+export const CheckboxStory: Story = {
+  name: 'Checkbox',
+  render: () => <CheckboxDemo />,
 }
 export const ErrorSummaryFields: Story = {
   name: 'ErrorSummary / field errors',
@@ -175,5 +180,14 @@ function SelectStory() {
         { value: 'approved', label: 'Approved' },
       ]}
     />
+  )
+}
+
+function CheckboxDemo() {
+  const [isSelected, setSelected] = useState(false)
+  return (
+    <Checkbox isSelected={isSelected} onChange={setSelected}>
+      I confirm these details are accurate and belong to me.
+    </Checkbox>
   )
 }

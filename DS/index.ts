@@ -1,5 +1,7 @@
 export { Button } from './Button'
 export type { ButtonProps } from './Button'
+export { Checkbox } from './Checkbox'
+export type { CheckboxProps } from './Checkbox'
 export { ErrorSummary } from './ErrorSummary'
 export type { ErrorSummaryFieldError, ErrorSummaryProps } from './ErrorSummary'
 export { SelectField } from './SelectField'

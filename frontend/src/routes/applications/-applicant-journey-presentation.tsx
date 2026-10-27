@@ -1,6 +1,16 @@
-import { Box, Button, Card, CardContent, Stack, Typography } from '@kyc/ui'
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Stack,
+  Typography,
+} from '@kyc/ui'
 
 import styles from '../applicant-journey.module.css'
+
+import type { ReactNode } from 'react'
 
 export type ApplicantJourneyStep = 'personal-details' | 'identity-and-address'
 export type ApplicantJourneyStepState = 'complete' | 'current' | 'remaining'
@@ -21,6 +31,10 @@ export interface ApplicantJourneyPresentationFixture {
 
 export interface ApplicantJourneyPresentationProps extends ApplicantJourneyPresentationFixture {
   onPrimaryAction: () => void
+  /** Disables repeat presses and announces progress while the action runs. */
+  isPending?: boolean
+  /** Shown above the action when it fails. */
+  errorMessage?: ReactNode
 }
 
 export const applicantJourneyFixtures = {
@@ -73,6 +87,8 @@ export function ApplicantJourneyPresentation({
   entryState,
   progress,
   onPrimaryAction,
+  isPending = false,
+  errorMessage,
 }: ApplicantJourneyPresentationProps) {
   const stateCopy = copy[entryState]
 
@@ -132,10 +148,14 @@ export function ApplicantJourneyPresentation({
               </Stack>
             </Box>
 
+            {Boolean(errorMessage) && (
+              <Alert severity="error">{errorMessage}</Alert>
+            )}
             <Button
               aria-describedby="journey-description journey-progress"
               fullWidth
-              onClick={onPrimaryAction}
+              isPending={isPending}
+              onPress={onPrimaryAction}
               size="large"
               className={styles.action}
             >

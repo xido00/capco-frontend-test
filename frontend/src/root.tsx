@@ -9,6 +9,8 @@ import {
   ScrollRestoration,
   useRouteError,
 } from 'react-router'
+
+import { ApiError } from './api/api-error'
 import './styles.css'
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -31,13 +33,32 @@ export function Layout({ children }: { children: ReactNode }) {
 
 export default function App() {
   const [queryClient] = useState(
-    () => new QueryClient({ defaultOptions: { mutations: { retry: false } } }),
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { retry: shouldRetryQuery },
+          mutations: { retry: false },
+        },
+      }),
   )
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
     </QueryClientProvider>
   )
+}
+
+/**
+ * Retries only failures a retry can fix (network, 5xx). Client errors such as
+ * an expired session (401) are shown immediately instead of after retries.
+ */
+function shouldRetryQuery(failureCount: number, error: Error): boolean {
+  const transient =
+    !(error instanceof ApiError) ||
+    error.failure.kind === 'network' ||
+    (error.failure.kind === 'unexpected' &&
+      (error.failure.status ?? 500) >= 500)
+  return transient && failureCount < 2
 }
 
 export function ErrorBoundary() {

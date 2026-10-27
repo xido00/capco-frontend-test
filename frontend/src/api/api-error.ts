@@ -52,6 +52,11 @@ export async function unwrap<T>(request: Promise<ClientResult<T>>): Promise<T> {
   try {
     result = await request
   } catch (cause) {
+    // Cancelled queries are not failures; let TanStack Query recognise the abort.
+    // Checked by name: the DOMException class differs between realms (fetch vs jsdom).
+    if (isAbortError(cause)) {
+      throw cause
+    }
     // openapi-fetch rethrows fetch failures; a SyntaxError means an unreadable success body.
     throw new ApiError(
       cause instanceof SyntaxError
@@ -102,6 +107,15 @@ function failureFrom(response: Response, body: unknown): ApiFailure {
     default:
       return { kind: 'unexpected', status: response.status }
   }
+}
+
+function isAbortError(cause: unknown): boolean {
+  return (
+    typeof cause === 'object' &&
+    cause !== null &&
+    'name' in cause &&
+    cause.name === 'AbortError'
+  )
 }
 
 function readErrors(body: unknown): JsonApiError[] {

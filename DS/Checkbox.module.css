@@ -1,0 +1,40 @@
+.checkbox {
+  align-items: flex-start;
+  color: #172b4d;
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+}
+.box {
+  align-items: center;
+  background: white;
+  border: 2px solid #526176;
+  border-radius: 4px;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+.checkbox[data-selected] .box {
+  background: #3157c8;
+  border-color: #3157c8;
+}
+.checkbox[data-focus-visible] .box {
+  outline: 3px solid #3157c8;
+  outline-offset: 2px;
+}
+.checkbox[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.check {
+  fill: none;
+  height: 16px;
+  stroke: white;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  width: 16px;
+}
