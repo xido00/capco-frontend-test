@@ -5,14 +5,19 @@ import { axe, toHaveNoViolations } from 'jest-axe'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
 
-import { jsonApiMediaType } from '../api/client'
+import {
+  apiPaths,
+  errorResponse,
+  jsonApiResponse,
+  sessionDocument,
+} from '../test/api-fixtures'
 import { server } from '../test/server'
 
 import { SignInForm } from './-sign-in-form'
 
 expect.extend(toHaveNoViolations)
 
-const sessionsPath = '/api/v1/applicant-sessions'
+const sessionsPath = apiPaths.sessions
 
 function renderForm() {
   const onSuccess = vi.fn<(href: string) => void>()
@@ -37,38 +42,6 @@ async function fillForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(passwordInput(), 'Secret!1')
 }
 
-function sessionDocument(href: string) {
-  return HttpResponse.json(
-    {
-      data: {
-        type: 'applicant-sessions',
-        id: '0199a8bb-8687-7c22-aed5-55d432f50f23',
-        attributes: { href },
-      },
-    },
-    { status: 201, headers: { 'Content-Type': jsonApiMediaType } },
-  )
-}
-
-function errorDocument(
-  status: number,
-  errors: { code: string; detail: string; pointer?: string }[],
-  headers: Record<string, string> = {},
-) {
-  return HttpResponse.json(
-    {
-      errors: errors.map(({ code, detail, pointer }) => ({
-        status: String(status),
-        code,
-        title: 'Error',
-        detail,
-        ...(pointer ? { source: { pointer } } : {}),
-      })),
-    },
-    { status, headers: { 'Content-Type': jsonApiMediaType, ...headers } },
-  )
-}
-
 describe('SignInForm', () => {
   it('requires both fields before calling the API', async () => {
     const { user } = renderForm()
@@ -89,7 +62,10 @@ describe('SignInForm', () => {
     server.use(
       http.post(sessionsPath, async ({ request }) => {
         body = await request.json()
-        return sessionDocument('/applications/0199a8bb/identity-and-address')
+        return jsonApiResponse(
+          sessionDocument('/applications/0199a8bb/identity-and-address'),
+          { status: 201 },
+        )
       }),
     )
     const { user, onSuccess } = renderForm()
@@ -112,7 +88,11 @@ describe('SignInForm', () => {
 
   it('forgets data cached for a previous session after signing in', async () => {
     server.use(
-      http.post(sessionsPath, () => sessionDocument('/applications/current')),
+      http.post(sessionsPath, () =>
+        jsonApiResponse(sessionDocument('/applications/current'), {
+          status: 201,
+        }),
+      ),
     )
     const { user, onSuccess, queryClient } = renderForm()
 
@@ -126,7 +106,11 @@ describe('SignInForm', () => {
   })
 
   it('falls back to the default journey when the API returns a non-journey URL', async () => {
-    server.use(http.post(sessionsPath, () => sessionDocument('/admin')))
+    server.use(
+      http.post(sessionsPath, () =>
+        jsonApiResponse(sessionDocument('/admin'), { status: 201 }),
+      ),
+    )
     const { user, onSuccess } = renderForm()
 
     await fillForm(user)
@@ -140,7 +124,7 @@ describe('SignInForm', () => {
   it('shows one message for invalid credentials, keeps the email and clears the password', async () => {
     server.use(
       http.post(sessionsPath, () =>
-        errorDocument(401, [
+        errorResponse(401, [
           { code: 'invalid-credentials', detail: 'Invalid email or password' },
         ]),
       ),
@@ -163,7 +147,7 @@ describe('SignInForm', () => {
   it('shows malformed input errors next to their fields', async () => {
     server.use(
       http.post(sessionsPath, () =>
-        errorDocument(400, [
+        errorResponse(400, [
           {
             code: 'validation-failed',
             detail: 'Enter a valid email address.',
@@ -188,7 +172,7 @@ describe('SignInForm', () => {
   it('treats a password rejected for its shape as invalid credentials', async () => {
     server.use(
       http.post(sessionsPath, () =>
-        errorDocument(400, [
+        errorResponse(400, [
           {
             code: 'validation-failed',
             detail:
@@ -215,7 +199,7 @@ describe('SignInForm', () => {
   it('only points out the email when both fields are rejected', async () => {
     server.use(
       http.post(sessionsPath, () =>
-        errorDocument(400, [
+        errorResponse(400, [
           {
             code: 'validation-failed',
             detail: 'Enter a valid email address.',
@@ -246,7 +230,7 @@ describe('SignInForm', () => {
     [
       'rate limiting',
       () =>
-        errorDocument(
+        errorResponse(
           429,
           [{ code: 'rate-limited', detail: 'Too many attempts.' }],
           { 'Retry-After': '120' },
@@ -285,7 +269,12 @@ describe('SignInForm', () => {
       http.post(sessionsPath, () => {
         requests += 1
         return new Promise<Response>((resolve) => {
-          release = () => resolve(sessionDocument('/applications/current'))
+          release = () =>
+            resolve(
+              jsonApiResponse(sessionDocument('/applications/current'), {
+                status: 201,
+              }),
+            )
         }) as unknown as Response
       }),
     )

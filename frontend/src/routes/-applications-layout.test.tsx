@@ -6,11 +6,12 @@ import { createRoutesStub } from 'react-router'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { queryClient as sharedQueryClient } from '../query-client'
+import { apiPaths } from '../test/api-fixtures'
 import { server } from '../test/server'
 
 import ApplicationsLayout, { clientLoader } from './applications'
 
-const sessionPath = '/api/v1/applicant-sessions/current'
+const sessionPath = apiPaths.currentSession
 
 function renderLayout() {
   const queryClient = new QueryClient({
@@ -66,7 +67,7 @@ describe('Applications layout', () => {
 })
 
 describe('Applications session guard', () => {
-  const currentPath = '/api/v1/applicant-applications/current'
+  const currentPath = apiPaths.currentApplication
 
   afterEach(() => sharedQueryClient.clear())
 

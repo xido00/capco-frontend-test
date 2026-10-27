@@ -5,14 +5,14 @@ import { axe, toHaveNoViolations } from 'jest-axe'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { jsonApiMediaType } from '../api/client'
+import { apiPaths, errorResponse } from '../test/api-fixtures'
 import { server } from '../test/server'
 
 import { CreateAccountForm } from './-create-account-form'
 
 expect.extend(toHaveNoViolations)
 
-const accountsPath = '/api/v1/applicant-accounts'
+const accountsPath = apiPaths.accounts
 
 function renderForm(returnTo?: string) {
   const queryClient = new QueryClient({
@@ -40,25 +40,6 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
 
 function respondWith(response: () => Response) {
   server.use(http.post(accountsPath, response))
-}
-
-function errorDocument(
-  status: number,
-  errors: { code: string; detail: string; pointer?: string }[],
-  headers: Record<string, string> = {},
-) {
-  return HttpResponse.json(
-    {
-      errors: errors.map(({ code, detail, pointer }) => ({
-        status: String(status),
-        code,
-        title: 'Error',
-        detail,
-        ...(pointer ? { source: { pointer } } : {}),
-      })),
-    },
-    { status, headers: { 'Content-Type': jsonApiMediaType, ...headers } },
-  )
 }
 
 describe('CreateAccountForm', () => {
@@ -150,7 +131,7 @@ describe('CreateAccountForm', () => {
 
   it('shows API field errors next to their fields', async () => {
     respondWith(() =>
-      errorDocument(400, [
+      errorResponse(400, [
         {
           code: 'validation-failed',
           detail: 'Enter a valid email address.',
@@ -173,7 +154,7 @@ describe('CreateAccountForm', () => {
 
   it('explains that the email is already registered', async () => {
     respondWith(() =>
-      errorDocument(409, [
+      errorResponse(409, [
         {
           code: 'email-already-registered',
           detail: 'An account already exists for this email address.',
@@ -197,7 +178,7 @@ describe('CreateAccountForm', () => {
     [
       'rate limiting',
       () =>
-        errorDocument(
+        errorResponse(
           429,
           [{ code: 'rate-limited', detail: 'Too many attempts.' }],
           { 'Retry-After': '30' },
@@ -217,7 +198,7 @@ describe('CreateAccountForm', () => {
     [
       'a malformed document error',
       () =>
-        errorDocument(400, [
+        errorResponse(400, [
           { code: 'malformed-document', detail: 'Not a JSON:API document.' },
         ]),
       'Something went wrong on our side. Try again later.',

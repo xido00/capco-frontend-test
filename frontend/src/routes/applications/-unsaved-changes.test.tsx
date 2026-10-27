@@ -5,7 +5,12 @@ import { http, HttpResponse } from 'msw'
 import { createRoutesStub, useParams } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
-import { jsonApiMediaType } from '../../api/client'
+import {
+  apiPaths,
+  applicationId,
+  formDocument,
+  jsonApiResponse,
+} from '../../test/api-fixtures'
 import { server } from '../../test/server'
 import ApplicationsLayout from '../applications'
 
@@ -13,25 +18,7 @@ import ApplicationStepPage from './$applicationId/$step'
 
 import type { ComponentProps } from 'react'
 
-const applicationId = '0199a8bb-8687-7c22-aed5-55d432f50f23'
-const formPath = `/api/v1/applicant-applications/${applicationId}/form`
-
-function formDocument(version = 1) {
-  return {
-    data: {
-      type: 'applicant-application-forms',
-      id: applicationId,
-      attributes: {
-        status: 'draft',
-        currentStep: 'personal-details',
-        steps: [],
-        answers: { name: 'Ada' },
-        documentEvidence: { present: false },
-        version,
-      },
-    },
-  }
-}
+const formPath = apiPaths.form()
 
 function StepRoute() {
   const params = useParams()
@@ -45,9 +32,7 @@ function StepRoute() {
 function renderJourney() {
   server.use(
     http.get(formPath, () =>
-      HttpResponse.json(formDocument(), {
-        headers: { 'Content-Type': jsonApiMediaType },
-      }),
+      jsonApiResponse(formDocument({ answers: { name: 'Ada' }, version: 1 })),
     ),
   )
   const queryClient = new QueryClient({
@@ -119,9 +104,9 @@ describe('Unsaved changes', () => {
   it('does not ask after "Save and continue" saved the edits', async () => {
     server.use(
       http.patch(formPath, () =>
-        HttpResponse.json(formDocument(2), {
-          headers: { 'Content-Type': jsonApiMediaType },
-        }),
+        jsonApiResponse(
+          formDocument({ answers: { name: 'Ada King' }, version: 2 }),
+        ),
       ),
     )
     const user = renderJourney()

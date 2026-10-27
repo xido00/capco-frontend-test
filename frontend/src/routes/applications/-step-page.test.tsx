@@ -2,76 +2,28 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
-import { http, HttpResponse, type JsonBodyType } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { createRoutesStub, useParams } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 
-import { jsonApiMediaType } from '../../api/client'
+import {
+  apiPaths,
+  applicationId,
+  completeAnswers,
+  errorResponse,
+  formDocument,
+  jsonApiResponse,
+} from '../../test/api-fixtures'
 import { server } from '../../test/server'
 
 import ApplicationStepPage from './$applicationId/$step'
 
+import type { ApplicationAnswers } from '../../api/applications'
 import type { ComponentProps } from 'react'
 
 expect.extend(toHaveNoViolations)
 
-const applicationId = '0199a8bb-8687-7c22-aed5-55d432f50f23'
-const formPath = `/api/v1/applicant-applications/${applicationId}/form`
-
-const savedAnswers = {
-  name: 'Ada Lovelace',
-  dateOfBirth: '1815-12-10',
-  country: 'United Kingdom',
-  nationality: 'British',
-  email: 'ada@example.test',
-  phone: '+44 20 7946 0000',
-  consentConfirmed: true,
-  documentType: 'Passport',
-  documentNumber: 'AL1815',
-  documentCountry: 'United Kingdom',
-  expiry: '2030-01-01',
-  street: '12 St James Square',
-  city: 'London',
-  postal: 'SW1Y 4JH',
-  residentialCountry: 'United Kingdom',
-}
-
-function formDocument(
-  answers: Record<string, unknown> = savedAnswers,
-  version = 4,
-  documentPresent = false,
-) {
-  return {
-    data: {
-      type: 'applicant-application-forms',
-      id: applicationId,
-      attributes: {
-        status: 'draft',
-        currentStep: 'personal-details',
-        steps: [],
-        answers,
-        documentEvidence: { present: documentPresent },
-        version,
-      },
-    },
-  }
-}
-
-function json(body: JsonBodyType, status = 200) {
-  return HttpResponse.json(body, {
-    status,
-    headers: { 'Content-Type': jsonApiMediaType },
-  })
-}
-
-function errorDocument(status: number, code: string) {
-  return json(
-    {
-      errors: [{ status: String(status), code, title: 'Error', detail: 'x' }],
-    },
-    status,
-  )
-}
+const formPath = apiPaths.form()
 
 function StepRoute() {
   const params = useParams()
@@ -103,7 +55,7 @@ const status = () => screen.getByRole('status')
 
 describe('Application step page', () => {
   it('fills every saved answer of the personal details step', async () => {
-    server.use(http.get(formPath, () => json(formDocument())))
+    server.use(http.get(formPath, () => jsonApiResponse(formDocument())))
     renderStep()
 
     expect(await screen.findByRole('textbox', { name: 'Name' })).toHaveValue(
@@ -119,7 +71,9 @@ describe('Application step page', () => {
 
   it('fills every saved answer of the identity and address step', async () => {
     server.use(
-      http.get(formPath, () => json(formDocument(savedAnswers, 4, true))),
+      http.get(formPath, () =>
+        jsonApiResponse(formDocument({ documentPresent: true })),
+      ),
     )
     renderStep('identity-and-address')
 
@@ -143,7 +97,16 @@ describe('Application step page', () => {
   it('leaves unanswered fields empty', async () => {
     server.use(
       http.get(formPath, () =>
-        json(formDocument({ name: 'Ada', phone: null })),
+        jsonApiResponse(
+          formDocument({
+            // The contract describes unanswered fields as "omitted or null",
+            // but its schema types them as strings only.
+            answers: {
+              name: 'Ada',
+              phone: null,
+            } as unknown as ApplicationAnswers,
+          }),
+        ),
       ),
     )
     renderStep()
@@ -156,7 +119,7 @@ describe('Application step page', () => {
   })
 
   it('flags unsaved changes from the first edit and clears the flag when undone', async () => {
-    server.use(http.get(formPath, () => json(formDocument())))
+    server.use(http.get(formPath, () => jsonApiResponse(formDocument())))
     const { user } = renderStep()
     const name = await screen.findByRole('textbox', { name: 'Name' })
 
@@ -171,10 +134,10 @@ describe('Application step page', () => {
   it('keeps edits made while a save is in flight marked as unsaved', async () => {
     let release: () => void = () => {}
     server.use(
-      http.get(formPath, () => json(formDocument())),
+      http.get(formPath, () => jsonApiResponse(formDocument())),
       http.patch(formPath, async () => {
         await new Promise<void>((resolve) => (release = resolve))
-        return json(formDocument(savedAnswers, 5))
+        return jsonApiResponse(formDocument({ version: 5 }))
       }),
     )
     const { user } = renderStep()
@@ -197,11 +160,16 @@ describe('Application step page', () => {
     let body: unknown
     let release: () => void = () => {}
     server.use(
-      http.get(formPath, () => json(formDocument())),
+      http.get(formPath, () => jsonApiResponse(formDocument())),
       http.patch(formPath, async ({ request }) => {
         body = await request.json()
         await new Promise<void>((resolve) => (release = resolve))
-        return json(formDocument({ ...savedAnswers, name: 'Ada King' }, 5))
+        return jsonApiResponse(
+          formDocument({
+            answers: { ...completeAnswers, name: 'Ada King' },
+            version: 5,
+          }),
+        )
       }),
     )
     const { user } = renderStep()
@@ -245,14 +213,14 @@ describe('Application step page', () => {
     const versions: unknown[] = []
     let version = 4
     server.use(
-      http.get(formPath, () => json(formDocument())),
+      http.get(formPath, () => jsonApiResponse(formDocument())),
       http.patch(formPath, async ({ request }) => {
         const body = (await request.json()) as {
           data: { attributes: { version: number } }
         }
         versions.push(body.data.attributes.version)
         version += 1
-        return json(formDocument(savedAnswers, version))
+        return jsonApiResponse(formDocument({ version }))
       }),
     )
     const { user } = renderStep()
@@ -271,12 +239,12 @@ describe('Application step page', () => {
   it('keeps entered values after a failed save and lets the Applicant retry', async () => {
     let attempts = 0
     server.use(
-      http.get(formPath, () => json(formDocument())),
+      http.get(formPath, () => jsonApiResponse(formDocument())),
       http.patch(formPath, () => {
         attempts += 1
         return attempts === 1
           ? new HttpResponse(null, { status: 503 })
-          : json(formDocument(savedAnswers, 5))
+          : jsonApiResponse(formDocument({ version: 5 }))
       }),
     )
     const { user } = renderStep()
@@ -306,12 +274,15 @@ describe('Application step page', () => {
       http.get(formPath, () => {
         loads += 1
         return loads === 1
-          ? json(formDocument())
-          : json(
-              formDocument({ ...savedAnswers, name: 'Changed elsewhere' }, 9),
+          ? jsonApiResponse(formDocument())
+          : jsonApiResponse(
+              formDocument({
+                answers: { ...completeAnswers, name: 'Changed elsewhere' },
+                version: 9,
+              }),
             )
       }),
-      http.patch(formPath, () => errorDocument(409, 'form-version-conflict')),
+      http.patch(formPath, () => errorResponse(409, 'form-version-conflict')),
     )
     const { user } = renderStep()
     const name = await screen.findByRole('textbox', { name: 'Name' })
@@ -344,8 +315,8 @@ describe('Application step page', () => {
     'asks the Applicant to sign in again when saving returns %i',
     async (statusCode, code) => {
       server.use(
-        http.get(formPath, () => json(formDocument())),
-        http.patch(formPath, () => errorDocument(statusCode, code)),
+        http.get(formPath, () => jsonApiResponse(formDocument())),
+        http.patch(formPath, () => errorResponse(statusCode, code)),
       )
       const { user } = renderStep()
 
@@ -366,8 +337,8 @@ describe('Application step page', () => {
 
   it('shows a clear message when the API rejects the answers', async () => {
     server.use(
-      http.get(formPath, () => json(formDocument())),
-      http.patch(formPath, () => errorDocument(422, 'unprocessable-form')),
+      http.get(formPath, () => jsonApiResponse(formDocument())),
+      http.patch(formPath, () => errorResponse(422, 'unprocessable-form')),
     )
     const { user } = renderStep()
 
@@ -380,8 +351,8 @@ describe('Application step page', () => {
 
   it('saves and continues to the next step', async () => {
     server.use(
-      http.get(formPath, () => json(formDocument())),
-      http.patch(formPath, () => json(formDocument(savedAnswers, 5))),
+      http.get(formPath, () => jsonApiResponse(formDocument())),
+      http.patch(formPath, () => jsonApiResponse(formDocument({ version: 5 }))),
     )
     const { user } = renderStep()
 
@@ -403,7 +374,7 @@ describe('Application step page', () => {
   ])(
     'explains why the form could not be loaded (%i)',
     async (statusCode, code, message) => {
-      server.use(http.get(formPath, () => errorDocument(statusCode, code)))
+      server.use(http.get(formPath, () => errorResponse(statusCode, code)))
       renderStep()
 
       expect(await screen.findByRole('alert')).toHaveTextContent(message)
@@ -411,7 +382,7 @@ describe('Application step page', () => {
   )
 
   it('has no automated accessibility violations', async () => {
-    server.use(http.get(formPath, () => json(formDocument())))
+    server.use(http.get(formPath, () => jsonApiResponse(formDocument())))
     const { container } = renderStep()
     await screen.findByRole('textbox', { name: 'Name' })
 
