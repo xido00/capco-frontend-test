@@ -169,6 +169,63 @@ describe('SignInForm', () => {
     )
   })
 
+  it('treats a password rejected for its shape as invalid credentials', async () => {
+    server.use(
+      http.post(sessionsPath, () =>
+        errorDocument(400, [
+          {
+            code: 'validation-failed',
+            detail:
+              'Use at least 6 characters including an uppercase letter and special character.',
+            pointer: '/data/attributes/password',
+          },
+        ]),
+      ),
+    )
+    const { user } = renderForm()
+
+    await fillForm(user)
+    await user.click(submitButton())
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(
+      'The email address or password is incorrect. Check them and try again.',
+    )
+    expect(alert).not.toHaveTextContent('uppercase')
+    expect(passwordInput()).not.toHaveAttribute('aria-invalid')
+    expect(passwordInput()).toHaveValue('')
+  })
+
+  it('only points out the email when both fields are rejected', async () => {
+    server.use(
+      http.post(sessionsPath, () =>
+        errorDocument(400, [
+          {
+            code: 'validation-failed',
+            detail: 'Enter a valid email address.',
+            pointer: '/data/attributes/email',
+          },
+          {
+            code: 'validation-failed',
+            detail:
+              'Use at least 6 characters including an uppercase letter and special character.',
+            pointer: '/data/attributes/password',
+          },
+        ]),
+      ),
+    )
+    const { user } = renderForm()
+
+    await fillForm(user)
+    await user.click(submitButton())
+
+    expect(
+      await screen.findByRole('link', { name: 'Enter a valid email address.' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).not.toHaveTextContent('uppercase')
+    expect(passwordInput()).not.toHaveAttribute('aria-invalid')
+  })
+
   it.each([
     [
       'rate limiting',

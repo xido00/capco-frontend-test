@@ -85,7 +85,7 @@ export function SignInForm({
           onSuccess(isSafeJourneyPath(href) ? href : defaultJourney)
         },
         onError: (error) => {
-          if (isInvalidCredentials(error)) {
+          if (isRejectedCredentials(error)) {
             setValues((current) => ({ ...current, password: '' }))
           }
           showFeedback(feedbackFor(error))
@@ -174,23 +174,35 @@ export function SignInForm({
   )
 }
 
-function isInvalidCredentials(error: Error): boolean {
-  return error instanceof ApiError && error.failure.kind === 'unauthorized'
+/**
+ * Wrong credentials, including a password the API rejects for its shape: no
+ * account can have such a password, so sign-in shows the same generic message
+ * instead of registration's password rules.
+ */
+function isRejectedCredentials(error: Error): boolean {
+  if (!(error instanceof ApiError)) {
+    return false
+  }
+  const { failure } = error
+  if (failure.kind === 'unauthorized') {
+    return true
+  }
+  if (failure.kind === 'validation') {
+    const { email, password } = fieldErrorsByAttribute(failure.errors)
+    return !email && Boolean(password)
+  }
+  return false
 }
 
 function feedbackFor(error: Error): FormFeedback<SignInField> {
-  if (isInvalidCredentials(error)) {
+  if (isRejectedCredentials(error)) {
     return { fieldErrors: {}, message: invalidCredentialsMessage }
   }
   if (error instanceof ApiError && error.failure.kind === 'validation') {
-    const { email, password } = fieldErrorsByAttribute(error.failure.errors)
-    if (email || password) {
-      return {
-        fieldErrors: {
-          ...(email ? { email } : {}),
-          ...(password ? { password } : {}),
-        },
-      }
+    // A malformed email is safe to point out; it says nothing about accounts.
+    const { email } = fieldErrorsByAttribute(error.failure.errors)
+    if (email) {
+      return { fieldErrors: { email } }
     }
   }
   return { fieldErrors: {}, message: formLevelMessage(error) }

@@ -56,3 +56,18 @@ test('invalid credentials show one message and keep the email', async ({
   await expect(page.getByLabel('Password')).toHaveValue('')
   await expect(page).toHaveURL('/sign-in')
 })
+
+test('a password that breaks the policy gets the same generic message', async ({
+  page,
+}) => {
+  const email = await registerApplicant(page)
+
+  await signIn(page, email, 'short')
+
+  const alert = page.getByRole('alert')
+  await expect(alert).toContainText(
+    'The email address or password is incorrect.',
+  )
+  await expect(alert).not.toContainText('uppercase')
+  await expect(page.getByLabel('Password')).toHaveValue('')
+})
