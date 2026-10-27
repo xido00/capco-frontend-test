@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { Button } from './Button'
+import { ErrorSummary } from './ErrorSummary'
 import {
   Alert,
   Box,
@@ -67,6 +68,23 @@ export const TextInputInvalid: Story = {
       description="Nine digits, as shown on your tax return."
       errorMessage="Enter a valid tax ID."
     />
+  ),
+}
+export const ErrorSummaryFields: Story = {
+  name: 'ErrorSummary / field errors',
+  render: () => (
+    <ErrorSummary
+      errors={[
+        { fieldId: 'email', message: 'Enter an email address.' },
+        { fieldId: 'password', message: 'Enter a password.' },
+      ]}
+    />
+  ),
+}
+export const ErrorSummaryMessage: Story = {
+  name: 'ErrorSummary / form message',
+  render: () => (
+    <ErrorSummary message="We could not reach the server. Check your connection and try again." />
   ),
 }
 export const AlertInfo: Story = {
