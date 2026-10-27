@@ -42,6 +42,6 @@ This project was built with Claude Code as a pair programmer. This log records h
 
 ### Sign-in (TICKET-002)
 
-- **AI proposal I accepted:** after sign-in, always continue at the journey URL from the API, not `returnTo`. The API knows the Applicant's current step, which also covers returning after an expired session in TICKET-003. The URL is still checked as a local journey path.
+- **AI proposal, pending my review in the PR:** after sign-in, always continue at the journey URL from the API, not `returnTo`. The API knows the Applicant's current step, which also covers returning after an expired session in TICKET-003. The URL is still checked as a local journey path.
 - **Refactor before the second form:** registration and sign-in share error handling, so it moved into `useFormFeedback` first, in its own commit, with registration tests unchanged.
 - **Verification:** unit tests for every API outcome and the pending state, axe checks, and e2e tests that check the stored session cookies and the invalid-credentials path against the real backend.
