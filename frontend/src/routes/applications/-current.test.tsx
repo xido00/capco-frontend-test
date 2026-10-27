@@ -2,52 +2,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
-import { http, HttpResponse, type JsonBodyType } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { createRoutesStub } from 'react-router'
 import { describe, expect, it } from 'vitest'
 
-import { jsonApiMediaType } from '../../api/client'
+import {
+  apiPaths,
+  applicationDocument,
+  errorResponse,
+  jsonApiResponse,
+} from '../../test/api-fixtures'
 import { server } from '../../test/server'
 
 import CurrentApplicationJourneyPage from './current'
 
 expect.extend(toHaveNoViolations)
 
-const currentPath = '/api/v1/applicant-applications/current'
-const applicationId = '0199a8bb-8687-7c22-aed5-55d432f50f23'
-
-function applicationDocument(
-  step: 'personal-details' | 'identity-and-address',
-) {
-  return {
-    data: {
-      type: 'applicant-applications',
-      id: applicationId,
-      attributes: {
-        status: 'draft',
-        currentStep: step,
-        href: `/applications/${applicationId}/${step}`,
-        progress:
-          step === 'personal-details'
-            ? [
-                { step: 'personal-details', state: 'current' },
-                { step: 'identity-and-address', state: 'not-started' },
-              ]
-            : [
-                { step: 'personal-details', state: 'complete' },
-                { step: 'identity-and-address', state: 'current' },
-              ],
-      },
-    },
-  }
-}
-
-function json(body: JsonBodyType, status = 200) {
-  return HttpResponse.json(body, {
-    status,
-    headers: { 'Content-Type': jsonApiMediaType },
-  })
-}
+const currentPath = apiPaths.currentApplication
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -72,8 +43,10 @@ describe('Current application page', () => {
   it('starts a draft when the Applicant has none and continues at its first step', async () => {
     server.use(
       http.get(currentPath, () => new HttpResponse(null, { status: 204 })),
-      http.post('/api/v1/applicant-applications', () =>
-        json(applicationDocument('personal-details'), 201),
+      http.post(apiPaths.applications, () =>
+        jsonApiResponse(applicationDocument('personal-details'), {
+          status: 201,
+        }),
       ),
     )
     const { user } = renderPage()
@@ -88,7 +61,7 @@ describe('Current application page', () => {
   it('resumes the saved draft at the step and progress reported by the API', async () => {
     server.use(
       http.get(currentPath, () =>
-        json(applicationDocument('identity-and-address')),
+        jsonApiResponse(applicationDocument('identity-and-address')),
       ),
     )
     const { user } = renderPage()
@@ -110,19 +83,7 @@ describe('Current application page', () => {
   it('asks the Applicant to sign in again when the session has expired', async () => {
     server.use(
       http.get(currentPath, () =>
-        json(
-          {
-            errors: [
-              {
-                status: '401',
-                code: 'authentication-required',
-                title: 'Authentication required',
-                detail: 'Sign in to continue.',
-              },
-            ],
-          },
-          401,
-        ),
+        errorResponse(401, 'authentication-required'),
       ),
     )
     renderPage()
@@ -160,7 +121,7 @@ describe('Current application page', () => {
   it('explains when starting the application fails', async () => {
     server.use(
       http.get(currentPath, () => new HttpResponse(null, { status: 204 })),
-      http.post('/api/v1/applicant-applications', () => HttpResponse.error()),
+      http.post(apiPaths.applications, () => HttpResponse.error()),
     )
     const { user } = renderPage()
 
@@ -176,7 +137,7 @@ describe('Current application page', () => {
   it('has no automated accessibility violations', async () => {
     server.use(
       http.get(currentPath, () =>
-        json(applicationDocument('personal-details')),
+        jsonApiResponse(applicationDocument('personal-details')),
       ),
     )
     const { container } = renderPage()

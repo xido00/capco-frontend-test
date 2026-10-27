@@ -1,6 +1,12 @@
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import {
+  apiPaths,
+  applicationId,
+  formDocument,
+  jsonApiResponse,
+} from '../test/api-fixtures'
 import { server } from '../test/server'
 
 import {
@@ -10,23 +16,11 @@ import {
 } from './applications'
 import { jsonApiMediaType } from './client'
 
-const applicationId = '0199a8bb-8687-7c22-aed5-55d432f50f23'
-const formPath = `/api/v1/applicant-applications/${applicationId}/form`
-
-const formDocument = {
-  data: {
-    type: 'applicant-application-forms',
-    id: applicationId,
-    attributes: {
-      status: 'draft',
-      currentStep: 'personal-details',
-      steps: [],
-      answers: { name: 'Ada Lovelace' },
-      documentEvidence: { present: false },
-      version: 4,
-    },
-  },
-}
+const formPath = apiPaths.form()
+const savedForm = formDocument({
+  answers: { name: 'Ada Lovelace' },
+  version: 4,
+})
 
 function setCookie(value: string) {
   document.cookie = value
@@ -41,7 +35,7 @@ describe('applications API', () => {
   it('returns null when the Applicant has no draft', async () => {
     server.use(
       http.get(
-        '/api/v1/applicant-applications/current',
+        apiPaths.currentApplication,
         () => new HttpResponse(null, { status: 204 }),
       ),
     )
@@ -54,9 +48,7 @@ describe('applications API', () => {
     server.use(
       http.patch(formPath, ({ request }) => {
         captured = request.clone()
-        return HttpResponse.json(formDocument, {
-          headers: { 'Content-Type': jsonApiMediaType },
-        })
+        return jsonApiResponse(savedForm)
       }),
     )
 
@@ -87,7 +79,7 @@ describe('applications API', () => {
     server.use(
       http.get(formPath, ({ request }) => {
         captured = request
-        return HttpResponse.json(formDocument)
+        return jsonApiResponse(savedForm)
       }),
     )
 
@@ -97,7 +89,7 @@ describe('applications API', () => {
   })
 
   it('rethrows aborts so cancelled queries are not reported as failures', async () => {
-    server.use(http.get(formPath, () => HttpResponse.json(formDocument)))
+    server.use(http.get(formPath, () => jsonApiResponse(savedForm)))
     const controller = new AbortController()
     controller.abort()
 

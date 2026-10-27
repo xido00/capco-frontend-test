@@ -1,0 +1,9 @@
+.page {
+  background: #f5f7fa;
+  min-height: 100dvh;
+  padding: 24px 16px;
+}
+.card {
+  margin: 48px auto 0;
+  max-width: 560px;
+}

@@ -1,6 +1,12 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import {
+  apiPaths,
+  errorResponse,
+  jsonApiResponse,
+  sessionDocument,
+} from '../test/api-fixtures'
 import { server } from '../test/server'
 
 import {
@@ -12,19 +18,8 @@ import {
 import { createApplicantAccount } from './applicant-access'
 import { apiClient, jsonApiMediaType } from './client'
 
-const accountsPath = '/api/v1/applicant-accounts'
+const accountsPath = apiPaths.accounts
 const credentials = { email: 'ada@example.test', password: 'Secret!1' }
-
-function errorDocument(status: number, code: string) {
-  return HttpResponse.json(
-    {
-      errors: [
-        { status: String(status), code, title: 'Title', detail: 'Detail' },
-      ],
-    },
-    { status, headers: { 'Content-Type': jsonApiMediaType } },
-  )
-}
 
 async function failureOf(request: Promise<unknown>): Promise<ApiFailure> {
   const error: unknown = await request.catch((cause: unknown) => cause)
@@ -54,16 +49,10 @@ describe('apiClient', () => {
 
 describe('unwrap', () => {
   it('returns the response data on success', async () => {
-    const session = {
-      data: {
-        type: 'applicant-sessions',
-        id: '0199a8bb-8687-7c22-aed5-55d432f50f23',
-        attributes: { href: '/applications/current' },
-      },
-    }
+    const session = sessionDocument('/applications/current')
     server.use(
-      http.post('/api/v1/applicant-sessions', () =>
-        HttpResponse.json(session, { status: 201 }),
+      http.post(apiPaths.sessions, () =>
+        jsonApiResponse(session, { status: 201 }),
       ),
     )
 
@@ -101,7 +90,7 @@ describe('unwrap', () => {
   ] as const)(
     'maps %i to a %s failure with its errors',
     async (status, kind) => {
-      server.use(http.post(accountsPath, () => errorDocument(status, 'code')))
+      server.use(http.post(accountsPath, () => errorResponse(status, 'code')))
 
       expect(await failureOf(createApplicantAccount(credentials))).toEqual({
         kind,
@@ -117,7 +106,7 @@ describe('unwrap', () => {
     [415, { kind: 'unexpected', status: 415 }],
     [500, { kind: 'unexpected', status: 500 }],
   ] as const)('maps %i to %o', async (status, expected) => {
-    server.use(http.post(accountsPath, () => errorDocument(status, 'code')))
+    server.use(http.post(accountsPath, () => errorResponse(status, 'code')))
 
     expect(await failureOf(createApplicantAccount(credentials))).toEqual(
       expected,

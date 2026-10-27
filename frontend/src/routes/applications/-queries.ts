@@ -26,5 +26,8 @@ export function applicationFormQuery(applicationId: string) {
   return queryOptions({
     queryKey: applicationQueryKeys.form(applicationId),
     queryFn: ({ signal }) => getApplicationForm(applicationId, signal),
+    // Lets the page reuse the route loader's fetch. Edits are protected by the
+    // version sent on save, not by how fresh this cache entry is.
+    staleTime: 10_000,
   })
 }

@@ -106,8 +106,12 @@ export function ApplicantJourneyPresentation({
               </Typography>
             </Stack>
 
-            <Box aria-label="Application progress" component="section">
-              <Typography component="h2" variant="subheading">
+            <Box aria-labelledby="journey-progress-heading" component="section">
+              <Typography
+                component="h2"
+                id="journey-progress-heading"
+                variant="subheading"
+              >
                 Your progress
               </Typography>
               <Stack

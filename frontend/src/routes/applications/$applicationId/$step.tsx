@@ -19,13 +19,19 @@ import { isSessionExpired, SessionExpiredMessage } from '../-session'
 import { isApplicationStep, stepOrder, stepTitles } from '../-step-fields'
 import { formLevelMessage } from '../../-account-access-feedback'
 import { ApiError } from '../../../api/api-error'
+import { queryClient } from '../../../query-client'
 import styles from '../../application-step.module.css'
 
 import type { Route } from './+types/$step'
 
-export function clientLoader({ params }: Route.ClientLoaderArgs) {
+export async function clientLoader({ params }: Route.ClientLoaderArgs) {
   if (params.step !== 'review' && !isApplicationStep(params.step)) {
     throw data(null, { status: 404 })
+  }
+  if (isApplicationStep(params.step)) {
+    // Load saved answers before the page renders. prefetchQuery never throws:
+    // failures stay in the query and the page shows them with a retry.
+    await queryClient.prefetchQuery(applicationFormQuery(params.applicationId))
   }
   return null
 }

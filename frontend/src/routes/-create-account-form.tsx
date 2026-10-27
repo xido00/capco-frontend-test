@@ -24,6 +24,7 @@ import {
 } from './-applicant-credentials'
 import { useFormFeedback, type FormFeedback } from './-form-feedback'
 import { accountAccessHref } from './-return-target'
+import { useRetryAfter } from './-use-retry-after'
 import styles from './account-access.module.css'
 
 export interface CreateAccountFormProps {
@@ -47,6 +48,7 @@ export function CreateAccountForm({ returnTo }: CreateAccountFormProps) {
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [createdEmail, setCreatedEmail] = useState<string>()
   const successHeadingRef = useRef<HTMLHeadingElement>(null)
+  const retryAfter = useRetryAfter()
   const registration = useMutation({ mutationFn: createApplicantAccount })
   const signInHref = accountAccessHref('/sign-in', returnTo)
 
@@ -67,7 +69,7 @@ export function CreateAccountForm({ returnTo }: CreateAccountFormProps) {
   }
 
   function submit() {
-    if (registration.isPending) {
+    if (registration.isPending || retryAfter.isWaiting) {
       return
     }
     setHasSubmitted(true)
@@ -84,7 +86,10 @@ export function CreateAccountForm({ returnTo }: CreateAccountFormProps) {
           flushSync(() => setCreatedEmail(email))
           successHeadingRef.current?.focus()
         },
-        onError: (error) => showFeedback(feedbackFor(error)),
+        onError: (error) => {
+          retryAfter.waitIfRateLimited(error)
+          showFeedback(feedbackFor(error))
+        },
       },
     )
   }
@@ -172,6 +177,7 @@ export function CreateAccountForm({ returnTo }: CreateAccountFormProps) {
               <Button
                 className={styles.submit}
                 fullWidth
+                isDisabled={retryAfter.isWaiting}
                 isPending={registration.isPending}
                 size="large"
                 type="submit"

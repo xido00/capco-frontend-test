@@ -22,8 +22,14 @@ import styles from '../application-step.module.css'
 
 import { applicationQueryKeys } from './-queries'
 import { isSessionExpired, SessionExpiredMessage } from './-session'
-import { stepFields, type TextAnswerName } from './-step-fields'
+import {
+  stepFields,
+  validateStepField,
+  validateStepValues,
+  type TextAnswerName,
+} from './-step-fields'
 import { useReportUnsavedChanges } from './-unsaved-changes'
+import { answersFor, useStepDraft } from './-use-step-draft'
 
 export interface ApplicationStepFormProps {
   applicationId: string
@@ -40,13 +46,6 @@ export interface ApplicationStepFormProps {
 
 type SaveIntent = 'save' | 'continue'
 
-interface Draft {
-  values: Partial<Record<TextAnswerName, string>>
-  consentConfirmed: boolean
-}
-
-const noFieldIds: Record<never, string> = {}
-
 export function ApplicationStepForm({
   applicationId,
   step,
@@ -58,17 +57,22 @@ export function ApplicationStepForm({
 }: ApplicationStepFormProps) {
   const queryClient = useQueryClient()
   const fields = stepFields[step]
-  const [draft, setDraft] = useState(() => draftFrom(form, step))
-  // What the API last confirmed; the draft differs from it while edits are unsaved.
-  const [savedDraft, setSavedDraft] = useState(draft)
-  // The version these edits are based on. Background refetches update the
-  // query cache, but saving must still detect changes made since the edits began.
-  const [baseVersion, setBaseVersion] = useState(form.attributes.version)
-  const [hasSaved, setHasSaved] = useState(false)
+  const {
+    draft,
+    baseVersion,
+    hasSaved,
+    hasUnsavedChanges,
+    setValue,
+    setConsentConfirmed,
+    markSaved,
+  } = useStepDraft(form, step)
   const [intent, setIntent] = useState<SaveIntent>('save')
   const [hasConflict, setHasConflict] = useState(false)
-  const { showFeedback, summaryProps } = useFormFeedback(noFieldIds)
-  const hasUnsavedChanges = !sameDraft(draft, savedDraft)
+  const fieldIds = Object.fromEntries(
+    fields.map(({ name }) => [name, fieldId(name)]),
+  ) as Record<TextAnswerName, string>
+  const { fieldErrors, setFieldErrors, showFeedback, summaryProps } =
+    useFormFeedback(fieldIds)
   const reportUnsavedChanges = useReportUnsavedChanges(hasUnsavedChanges)
   const save = useMutation({
     mutationFn: (answers: ApplicationAnswers) =>
@@ -81,21 +85,18 @@ export function ApplicationStepForm({
 
   const savingIntent = save.isPending ? intent : undefined
 
-  function updateDraft(change: Partial<Draft>) {
-    setDraft((current) => ({ ...current, ...change }))
-  }
-
   function submit(nextIntent: SaveIntent) {
     if (save.isPending) {
       return
     }
+    const errors = validateStepValues(step, draft.values)
+    if (Object.keys(errors).length > 0) {
+      showFeedback({ fieldErrors: errors })
+      return
+    }
     setIntent(nextIntent)
     const submitted = draft
-    const answers: ApplicationAnswers = { ...submitted.values }
-    if (step === 'personal-details') {
-      answers.consentConfirmed = submitted.consentConfirmed
-    }
-    save.mutate(answers, {
+    save.mutate(answersFor(submitted, step), {
       onSuccess: (saved) => {
         queryClient.setQueryData(
           applicationQueryKeys.form(applicationId),
@@ -106,10 +107,8 @@ export function ApplicationStepForm({
           queryKey: applicationQueryKeys.current,
         })
         // Edits made while the request was in flight stay unsaved.
-        setSavedDraft(submitted)
-        setBaseVersion(saved.attributes.version)
+        markSaved(submitted, saved.attributes.version)
         setHasConflict(false)
-        setHasSaved(true)
         showFeedback({ fieldErrors: {} })
         if (nextIntent === 'continue') {
           // Navigating now must not be blocked by the pre-save state.
@@ -150,16 +149,21 @@ export function ApplicationStepForm({
           autoComplete={field.autoComplete ?? 'off'}
           description={field.description}
           fullWidth
-          id={`answer-${field.name}`}
+          errorMessage={fieldErrors[field.name]}
+          id={fieldId(field.name)}
           key={field.name}
           label={field.label}
           name={field.name}
           onChange={(event) => {
             const { value } = event.target
-            setDraft((current) => ({
-              ...current,
-              values: { ...current.values, [field.name]: value },
-            }))
+            setValue(field.name, value)
+            if (fieldErrors[field.name]) {
+              // Clear or update the error as soon as the answer is corrected.
+              setFieldErrors((current) => ({
+                ...current,
+                [field.name]: validateStepField(field, value),
+              }))
+            }
           }}
           type={field.type ?? 'text'}
           value={draft.values[field.name] ?? ''}
@@ -169,9 +173,7 @@ export function ApplicationStepForm({
         <Checkbox
           isSelected={draft.consentConfirmed}
           name="consentConfirmed"
-          onChange={(isSelected) =>
-            updateDraft({ consentConfirmed: isSelected })
-          }
+          onChange={setConsentConfirmed}
         >
           I confirm these details are accurate and belong to me.
         </Checkbox>
@@ -218,23 +220,8 @@ function saveStatusText(hasUnsavedChanges: boolean, hasSaved: boolean) {
   return hasSaved ? 'Your answers have been saved.' : ''
 }
 
-function draftFrom(form: ApplicationForm, step: ApplicationStep): Draft {
-  const { answers } = form.attributes
-  return {
-    values: Object.fromEntries(
-      stepFields[step].map(({ name }) => [name, answers[name] ?? '']),
-    ),
-    consentConfirmed: answers.consentConfirmed ?? false,
-  }
-}
-
-function sameDraft(a: Draft, b: Draft): boolean {
-  return (
-    a.consentConfirmed === b.consentConfirmed &&
-    Object.entries(a.values).every(
-      ([name, value]) => b.values[name as TextAnswerName] === value,
-    )
-  )
+function fieldId(name: TextAnswerName): string {
+  return `answer-${name}`
 }
 
 function saveErrorMessage(error: Error, pathname: string): ReactNode {
