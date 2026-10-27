@@ -5,6 +5,10 @@ import { SignInForm } from './-sign-in-form'
 
 import type { Route } from './+types/sign-in'
 
+export function meta(): Route.MetaDescriptors {
+  return [{ title: 'Sign in – KYC' }]
+}
+
 export function clientLoader({ request }: Route.ClientLoaderArgs) {
   const search = Object.fromEntries(new URL(request.url).searchParams)
   return parseAccountAccessSearch(search)

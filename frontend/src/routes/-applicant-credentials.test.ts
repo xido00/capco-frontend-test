@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { validateRegistration } from './-applicant-credentials'
+import { validateRegistration, validateSignIn } from './-applicant-credentials'
 
 const valid = {
   email: 'ada@example.test',
@@ -69,5 +69,18 @@ describe('validateRegistration', () => {
         confirmPassword: 'Secret?',
       }).confirmPassword,
     ).toBe('Passwords do not match')
+  })
+})
+
+describe('validateSignIn', () => {
+  it('requires both fields', () => {
+    expect(validateSignIn({ email: ' ', password: '' })).toEqual({
+      email: 'Enter your email address',
+      password: 'Enter your password',
+    })
+  })
+
+  it('leaves the password policy to the API', () => {
+    expect(validateSignIn({ email: 'ada', password: 'x' })).toEqual({})
   })
 })
