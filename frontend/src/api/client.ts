@@ -14,12 +14,30 @@ export const apiClient = createClient<paths>({
   fetch: (request) => globalThis.fetch(request),
 })
 
+const safeMethods = new Set(['GET', 'HEAD', 'OPTIONS'])
+
 apiClient.use({
   onRequest({ request }) {
     // openapi-fetch sends JSON bodies as application/json; the API requires JSON:API.
     if (request.headers.get('Content-Type') === 'application/json') {
       request.headers.set('Content-Type', jsonApiMediaType)
     }
+    // Authenticated writes must echo the XSRF-TOKEN cookie set at sign-in.
+    const csrfToken = readCookie('XSRF-TOKEN')
+    if (csrfToken && !safeMethods.has(request.method)) {
+      request.headers.set('X-XSRF-TOKEN', csrfToken)
+    }
     return request
   },
 })
+
+function readCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') {
+    return undefined
+  }
+  const prefix = `${name}=`
+  const cookie = document.cookie
+    .split('; ')
+    .find((entry) => entry.startsWith(prefix))
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : undefined
+}
