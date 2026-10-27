@@ -6,6 +6,10 @@ import { startApplication } from './support'
 // Runs axe in a real browser, which also checks colour contrast and rendered
 // states that jsdom-based unit tests cannot.
 async function expectNoViolations(page: Page) {
+  // In SPA mode <Meta /> sets the title after hydration. Scanning earlier
+  // reports a missing <title>; waiting also checks every page has its own
+  // title (WCAG 2.4.2).
+  await expect(page).toHaveTitle(/ – KYC$/)
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     // React Aria's live announcer keeps announced messages for 7 s as
