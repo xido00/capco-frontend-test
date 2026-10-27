@@ -1,5 +1,4 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-aria-components'
 import {
   isRouteErrorResponse,
@@ -14,7 +13,9 @@ import {
   type NavigateOptions,
 } from 'react-router'
 
-import { ApiError } from './api/api-error'
+import { queryClient } from './query-client'
+
+import type { ReactNode } from 'react'
 import './styles.css'
 
 declare module 'react-aria-components' {
@@ -42,15 +43,6 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: { retry: shouldRetryQuery },
-          mutations: { retry: false },
-        },
-      }),
-  )
   const navigate = useNavigate()
   return (
     <QueryClientProvider client={queryClient}>
@@ -65,17 +57,13 @@ export default function App() {
   )
 }
 
-/**
- * Retries only failures a retry can fix (network, 5xx). Client errors such as
- * an expired session (401) are shown immediately instead of after retries.
- */
-function shouldRetryQuery(failureCount: number, error: Error): boolean {
-  const transient =
-    !(error instanceof ApiError) ||
-    error.failure.kind === 'network' ||
-    (error.failure.kind === 'unexpected' &&
-      (error.failure.status ?? 500) >= 500)
-  return transient && failureCount < 2
+/** Shown while route client loaders run on the first page load (SPA mode). */
+export function HydrateFallback() {
+  return (
+    <main>
+      <p role="status">Loading…</p>
+    </main>
+  )
 }
 
 export function ErrorBoundary() {

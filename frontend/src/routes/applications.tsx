@@ -1,14 +1,44 @@
 import { Alert, Button, ConfirmDialog, Typography } from '@kyc/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Outlet, useBlocker, useNavigate } from 'react-router'
+import { Outlet, redirect, useBlocker, useNavigate } from 'react-router'
 
 import { ApiError } from '../api/api-error'
 import { signOut } from '../api/applications'
+import { queryClient } from '../query-client'
 
+import { accountAccessHref, isSafeJourneyPath } from './-return-target'
+import { currentApplicationQuery } from './applications/-queries'
+import { isSessionExpired } from './applications/-session'
 import styles from './applications-layout.module.css'
 
+import type { Route } from './+types/applications'
 import type { ApplicationsOutletContext } from './applications/-unsaved-changes'
+
+/**
+ * Keeps signed-out visitors out of the Applicant area. The API has no
+ * "who am I" endpoint, so the current-application read doubles as the
+ * session check; its result is cached for the page that needs it.
+ */
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  try {
+    await queryClient.fetchQuery(currentApplicationQuery())
+  } catch (error) {
+    if (isSessionExpired(error)) {
+      const { pathname, search } = new URL(request.url)
+      const returnTo = `${pathname}${search}`
+      // Same rule sign-in applies: only journey pages are worth returning to.
+      throw redirect(
+        accountAccessHref(
+          '/sign-in',
+          isSafeJourneyPath(returnTo) ? returnTo : undefined,
+        ),
+      )
+    }
+    // Other failures do not prove the visitor is signed out; pages show them with a retry.
+  }
+  return null
+}
 
 export default function ApplicationsLayout() {
   const navigate = useNavigate()

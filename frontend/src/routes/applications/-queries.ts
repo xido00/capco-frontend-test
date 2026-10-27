@@ -16,6 +16,9 @@ export function currentApplicationQuery() {
   return queryOptions({
     queryKey: applicationQueryKeys.current,
     queryFn: ({ signal }) => getCurrentApplication(signal),
+    // Fresh long enough for the page to reuse the layout's session check
+    // instead of requesting it again; saves invalidate it explicitly.
+    staleTime: 10_000,
   })
 }
 
