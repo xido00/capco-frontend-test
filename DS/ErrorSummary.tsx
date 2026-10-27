@@ -1,6 +1,6 @@
-import { useId, type ReactNode, type Ref } from 'react'
-
 import styles from './ErrorSummary.module.css'
+
+import type { ReactNode, Ref } from 'react'
 
 export interface ErrorSummaryFieldError {
   /** Id of the invalid input; the message links to it and focuses it. */
@@ -20,6 +20,8 @@ export interface ErrorSummaryProps {
 /**
  * Lists form errors at the top of a form, following the GOV.UK error summary
  * pattern: focusable container, announced content, links that focus each field.
+ * The container has no accessible name: ARIA prohibits naming a generic element,
+ * and the inner alert already announces the title and messages.
  */
 export function ErrorSummary({
   message,
@@ -27,21 +29,13 @@ export function ErrorSummary({
   title = 'There is a problem',
   ref,
 }: ErrorSummaryProps) {
-  const titleId = useId()
   if (!message && errors.length === 0) {
     return null
   }
   return (
-    <div
-      ref={ref}
-      aria-labelledby={titleId}
-      className={styles.summary}
-      tabIndex={-1}
-    >
+    <div ref={ref} className={styles.summary} tabIndex={-1}>
       <div role="alert">
-        <h2 className={styles.title} id={titleId}>
-          {title}
-        </h2>
+        <h2 className={styles.title}>{title}</h2>
         {Boolean(message) && <p className={styles.message}>{message}</p>}
         {errors.length > 0 && (
           <ul className={styles.list}>

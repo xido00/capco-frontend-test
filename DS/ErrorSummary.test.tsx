@@ -51,14 +51,14 @@ describe('ErrorSummary', () => {
     expect(screen.getByLabelText('Email address')).toHaveFocus()
   })
 
-  it('exposes a focusable container named by its title', () => {
+  it('exposes a focusable container that holds the alert', () => {
     const ref = createRef<HTMLDivElement>()
     render(<ErrorSummary ref={ref} message="Something went wrong." />)
 
     ref.current?.focus()
 
     expect(ref.current).toHaveFocus()
-    expect(ref.current).toHaveAccessibleName('There is a problem')
+    expect(ref.current).toContainElement(screen.getByRole('alert'))
   })
 
   it('has no automated accessibility violations', async () => {
