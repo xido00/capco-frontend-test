@@ -22,6 +22,21 @@
 .footer {
   text-align: center;
 }
+.primaryLink {
+  align-items: center;
+  background: #3157c8;
+  border-radius: 6px;
+  color: white;
+  display: flex;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 48px;
+  text-decoration: none;
+}
+.primaryLink[data-focus-visible] {
+  outline: 3px solid #172b4d;
+  outline-offset: 2px;
+}
 
 @media (min-width: 600px) {
   .page {

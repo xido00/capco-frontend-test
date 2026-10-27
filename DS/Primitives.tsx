@@ -138,6 +138,7 @@ type TypographyProps = Omit<
     'display' | 'heading' | 'subheading' | 'body' | 'caption' | 'eyebrow'
   tone?: 'default' | 'muted' | 'accent'
   align?: 'left' | 'center' | 'right'
+  ref?: Ref<HTMLElement>
 }
 const defaultElementTypes = {
   display: 'h1',
@@ -198,8 +199,10 @@ export type TextFieldProps = Omit<
   'className' | 'size' | 'style'
 > & {
   label: ReactNode
-  helperText?: ReactNode
-  error?: boolean
+  /** Hint that stays visible, also while the field shows an error. */
+  description?: ReactNode
+  /** Marks the field invalid and explains how to fix it. */
+  errorMessage?: ReactNode
   fullWidth?: boolean
   inputRef?: Ref<HTMLInputElement>
   className?: string
@@ -207,11 +210,12 @@ export type TextFieldProps = Omit<
 }
 export function TextField({
   label,
-  helperText,
-  error = false,
+  description,
+  errorMessage,
   fullWidth = false,
   inputRef,
   id,
+  required,
   className,
   inputClassName,
   ...props
@@ -220,8 +224,11 @@ export function TextField({
   return (
     <AriaTextField
       id={id ?? generatedId}
-      isInvalid={error}
+      isInvalid={Boolean(errorMessage)}
       isDisabled={props.disabled}
+      isRequired={required}
+      // Applications own validation and messages; never show native browser bubbles.
+      validationBehavior="aria"
       className={[styles.textField, fullWidth && styles.fullWidth, className]
         .filter(Boolean)
         .join(' ')}
@@ -232,12 +239,14 @@ export function TextField({
         ref={inputRef}
         className={[styles.input, inputClassName].filter(Boolean).join(' ')}
       />
-      {Boolean(helperText) && (
-        <Text
-          slot={error ? 'errorMessage' : 'description'}
-          className={styles.description}
-        >
-          {helperText}
+      {Boolean(description) && (
+        <Text slot="description" className={styles.description}>
+          {description}
+        </Text>
+      )}
+      {Boolean(errorMessage) && (
+        <Text slot="errorMessage" className={styles.errorMessage}>
+          {errorMessage}
         </Text>
       )}
     </AriaTextField>

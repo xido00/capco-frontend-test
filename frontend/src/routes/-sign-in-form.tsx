@@ -88,9 +88,8 @@ export function SignInForm({
             ) : null}
             <TextField
               autoComplete="email"
-              error={Boolean(emailError)}
               fullWidth
-              helperText={emailError}
+              errorMessage={emailError}
               id="applicant-email"
               inputRef={emailInput}
               label="Email address"
@@ -105,9 +104,8 @@ export function SignInForm({
             />
             <TextField
               autoComplete="current-password"
-              error={Boolean(passwordError)}
               fullWidth
-              helperText={passwordError}
+              errorMessage={passwordError}
               id="applicant-password"
               inputRef={passwordInput}
               label="Password"
