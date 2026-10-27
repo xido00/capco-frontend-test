@@ -7,6 +7,7 @@ export default [
   route('create-account', 'routes/create-account.tsx'),
   route('sign-in', 'routes/sign-in.tsx'),
   route('applications', 'routes/applications.tsx', [
+    index('routes/applications/index.tsx'),
     route('current', 'routes/applications/current.tsx'),
     route(
       ':applicationId/submitted',
