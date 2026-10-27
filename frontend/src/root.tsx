@@ -1,3 +1,4 @@
+import { Card, CardContent, Link, Stack, Typography } from '@kyc/ui'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-aria-components'
 import {
@@ -13,6 +14,7 @@ import {
   type NavigateOptions,
 } from 'react-router'
 
+import styles from './error-page.module.css'
 import { queryClient } from './query-client'
 
 import type { ReactNode } from 'react'
@@ -69,14 +71,27 @@ export function HydrateFallback() {
 export function ErrorBoundary() {
   const error = useRouteError()
   const notFound = isRouteErrorResponse(error) && error.status === 404
+  const title = notFound ? 'Page not found' : 'Something went wrong'
+  // Rendered outside App, so DS links here do full page loads, which also
+  // resets whatever state led to the error.
   return (
-    <main>
-      <h1>{notFound ? 'Page not found' : 'Something went wrong'}</h1>
-      <p>
-        {notFound
-          ? 'The page you requested does not exist.'
-          : 'Please try again.'}
-      </p>
+    <main className={styles.page}>
+      <title>{`${title} – KYC`}</title>
+      <Card className={styles.card}>
+        <CardContent>
+          <Stack spacing={2}>
+            <Typography component="h1" variant="heading">
+              {title}
+            </Typography>
+            <Typography>
+              {notFound
+                ? 'The page you requested does not exist.'
+                : 'An unexpected error stopped this page from loading. Try again in a moment.'}
+            </Typography>
+            <Link href="/applications/current">Go to your application</Link>
+          </Stack>
+        </CardContent>
+      </Card>
     </main>
   )
 }

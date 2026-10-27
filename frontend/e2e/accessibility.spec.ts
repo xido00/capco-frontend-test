@@ -59,3 +59,21 @@ test('application journey pages and the unsaved changes dialog', async ({
   await expect(page.getByRole('alertdialog')).toBeVisible()
   await expectNoViolations(page)
 })
+
+test('not found page has a title, a way back and no violations', async ({
+  page,
+}) => {
+  await startApplication(page)
+  const stepUrl = page.url()
+
+  await page.goto(stepUrl.replace('personal-details', 'unknown-step'))
+
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Page not found' }),
+  ).toBeVisible()
+  await expect(page).toHaveTitle('Page not found – KYC')
+  await expect(
+    page.getByRole('link', { name: 'Go to your application' }),
+  ).toBeVisible()
+  await expectNoViolations(page)
+})
