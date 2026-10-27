@@ -69,3 +69,14 @@ This project was built with Claude Code as a pair programmer. This log records h
 - **Findings left for discussion:** central 401 handling for queries, `clientLoader` instead of in-component queries, a draft hook, shared typed test fixtures, axe in Playwright.
 - **Design detail:** the unsaved-changes guard lives in the applications layout, not the form, so "Sign out" asks before revoking the session. Client-side links meant the query cache now survives re-login, so sign-in clears it.
 - **Verification:** the focus tests were checked to fail with the fix disabled. One `npm run quality` run failed and could not be reproduced in 2 full and 8 test-only reruns, and its log was not kept. Watching CI for a flaky test.
+
+### Review follow-ups
+
+- **Request:** after the ticket PRs were merged, I asked for one PR with the remaining review items.
+- **Skipped on purpose:** central `401` handling for queries. The layout guard (#8) covers entering the area, and pages handle expiry mid-session so unsaved answers stay on screen; a global redirect would throw them away.
+- **What changing the code revealed:**
+  - Typed test fixtures showed the contract describes unanswered fields as "omitted or null" while its schema only allows strings.
+  - Extracting `useStepDraft` showed the form version is optional in the contract.
+  - Axe in a real browser found only transient React Aria live-announcer nodes, excluded with the reason in the test. Colour contrast passed.
+  - The earlier unreproduced `npm run quality` failure was a flaky test: the first `findBy*` in a file took 1.4 s against a 1 s default under parallel load. Fixed by a longer timeout with the reasoning in the setup file, not by retrying.
+- **AI mistake caught before pushing:** the first README note claimed Firefox support and named Safari as the failing browser, neither of which was verified. It now states only what was checked (Chromium) and that Safari is known to drop `Secure` cookies on HTTP.
