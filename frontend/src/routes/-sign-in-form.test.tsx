@@ -19,12 +19,13 @@ function renderForm() {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   })
+  queryClient.setQueryData(['applications', 'current'], { id: 'previous' })
   const { container } = render(
     <QueryClientProvider client={queryClient}>
       <SignInForm onSuccess={onSuccess} />
     </QueryClientProvider>,
   )
-  return { user: userEvent.setup(), container, onSuccess }
+  return { user: userEvent.setup(), container, onSuccess, queryClient }
 }
 
 const emailInput = () => screen.getByRole('textbox', { name: 'Email address' })
@@ -107,6 +108,21 @@ describe('SignInForm', () => {
         attributes: { email: 'ada@example.test', password: 'Secret!1' },
       },
     })
+  })
+
+  it('forgets data cached for a previous session after signing in', async () => {
+    server.use(
+      http.post(sessionsPath, () => sessionDocument('/applications/current')),
+    )
+    const { user, onSuccess, queryClient } = renderForm()
+
+    await fillForm(user)
+    await user.click(submitButton())
+
+    await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled())
+    expect(
+      queryClient.getQueryData(['applications', 'current']),
+    ).toBeUndefined()
   })
 
   it('falls back to the default journey when the API returns a non-journey URL', async () => {

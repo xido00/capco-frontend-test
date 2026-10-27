@@ -1,15 +1,35 @@
-import { Alert, Button, Typography } from '@kyc/ui'
+import { Alert, Button, ConfirmDialog, Typography } from '@kyc/ui'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Outlet, useNavigate } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Outlet, useBlocker, useNavigate } from 'react-router'
 
 import { ApiError } from '../api/api-error'
 import { signOut } from '../api/applications'
 
 import styles from './applications-layout.module.css'
 
+import type { ApplicationsOutletContext } from './applications/-unsaved-changes'
+
 export default function ApplicationsLayout() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  // A ref, not state: a page clears it right before navigating after a save,
+  // and the blocker must see that immediately.
+  const hasUnsavedChanges = useRef(false)
+  const [isSignOutPending, setSignOutPending] = useState(false)
+  const outletContext = useMemo<ApplicationsOutletContext>(
+    () => ({
+      reportUnsavedChanges: (value) => {
+        hasUnsavedChanges.current = value
+      },
+    }),
+    [],
+  )
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      hasUnsavedChanges.current &&
+      currentLocation.pathname !== nextLocation.pathname,
+  )
   const signOutMutation = useMutation({
     mutationFn: signOut,
     onSettled: (_, error) => {
@@ -25,6 +45,40 @@ export default function ApplicationsLayout() {
     },
   })
 
+  useEffect(() => {
+    // Reloading or closing the tab: let the browser ask.
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges.current) {
+        event.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', warnBeforeUnload)
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload)
+  }, [])
+
+  function requestSignOut() {
+    if (hasUnsavedChanges.current) {
+      setSignOutPending(true)
+    } else {
+      signOutMutation.mutate()
+    }
+  }
+
+  function discardChangesAndContinue() {
+    hasUnsavedChanges.current = false
+    if (isSignOutPending) {
+      setSignOutPending(false)
+      signOutMutation.mutate()
+    } else {
+      blocker.proceed?.()
+    }
+  }
+
+  function stay() {
+    setSignOutPending(false)
+    blocker.reset?.()
+  }
+
   return (
     <>
       <header className={styles.header}>
@@ -33,7 +87,7 @@ export default function ApplicationsLayout() {
         </Typography>
         <Button
           isPending={signOutMutation.isPending}
-          onPress={() => signOutMutation.mutate()}
+          onPress={requestSignOut}
           size="small"
           variant="secondary"
         >
@@ -45,7 +99,24 @@ export default function ApplicationsLayout() {
           We could not sign you out. Check your connection and try again.
         </Alert>
       ) : null}
-      <Outlet />
+      <Outlet context={outletContext} />
+      <ConfirmDialog
+        isOpen={blocker.state === 'blocked' || isSignOutPending}
+        title={
+          isSignOutPending
+            ? 'Sign out without saving?'
+            : 'Leave without saving?'
+        }
+        confirmLabel={
+          isSignOutPending ? 'Sign out without saving' : 'Leave without saving'
+        }
+        cancelLabel="Stay on this page"
+        onConfirm={discardChangesAndContinue}
+        onCancel={stay}
+      >
+        Your latest changes on this page have not been saved. If you continue,
+        they will be lost.
+      </ConfirmDialog>
     </>
   )
 }

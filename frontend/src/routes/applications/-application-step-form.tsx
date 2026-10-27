@@ -23,6 +23,7 @@ import styles from '../application-step.module.css'
 import { applicationQueryKeys } from './-queries'
 import { isSessionExpired, SessionExpiredMessage } from './-session'
 import { stepFields, type TextAnswerName } from './-step-fields'
+import { useReportUnsavedChanges } from './-unsaved-changes'
 
 export interface ApplicationStepFormProps {
   applicationId: string
@@ -38,7 +39,11 @@ export interface ApplicationStepFormProps {
 }
 
 type SaveIntent = 'save' | 'continue'
-type SaveState = 'idle' | 'saved' | 'changed'
+
+interface Draft {
+  values: Partial<Record<TextAnswerName, string>>
+  consentConfirmed: boolean
+}
 
 const noFieldIds: Record<never, string> = {}
 
@@ -53,17 +58,18 @@ export function ApplicationStepForm({
 }: ApplicationStepFormProps) {
   const queryClient = useQueryClient()
   const fields = stepFields[step]
-  const [values, setValues] = useState(() => initialValues(form, step))
-  const [consentConfirmed, setConsentConfirmed] = useState(
-    form.attributes.answers.consentConfirmed ?? false,
-  )
+  const [draft, setDraft] = useState(() => draftFrom(form, step))
+  // What the API last confirmed; the draft differs from it while edits are unsaved.
+  const [savedDraft, setSavedDraft] = useState(draft)
   // The version these edits are based on. Background refetches update the
   // query cache, but saving must still detect changes made since the edits began.
   const [baseVersion, setBaseVersion] = useState(form.attributes.version)
-  const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [hasSaved, setHasSaved] = useState(false)
   const [intent, setIntent] = useState<SaveIntent>('save')
   const [hasConflict, setHasConflict] = useState(false)
   const { showFeedback, summaryProps } = useFormFeedback(noFieldIds)
+  const hasUnsavedChanges = !sameDraft(draft, savedDraft)
+  const reportUnsavedChanges = useReportUnsavedChanges(hasUnsavedChanges)
   const save = useMutation({
     mutationFn: (answers: ApplicationAnswers) =>
       saveApplicationForm(applicationId, {
@@ -75,10 +81,8 @@ export function ApplicationStepForm({
 
   const savingIntent = save.isPending ? intent : undefined
 
-  function markChanged() {
-    if (saveState === 'saved') {
-      setSaveState('changed')
-    }
+  function updateDraft(change: Partial<Draft>) {
+    setDraft((current) => ({ ...current, ...change }))
   }
 
   function submit(nextIntent: SaveIntent) {
@@ -86,9 +90,10 @@ export function ApplicationStepForm({
       return
     }
     setIntent(nextIntent)
-    const answers: ApplicationAnswers = { ...values }
+    const submitted = draft
+    const answers: ApplicationAnswers = { ...submitted.values }
     if (step === 'personal-details') {
-      answers.consentConfirmed = consentConfirmed
+      answers.consentConfirmed = submitted.consentConfirmed
     }
     save.mutate(answers, {
       onSuccess: (saved) => {
@@ -100,11 +105,15 @@ export function ApplicationStepForm({
         void queryClient.invalidateQueries({
           queryKey: applicationQueryKeys.current,
         })
+        // Edits made while the request was in flight stay unsaved.
+        setSavedDraft(submitted)
         setBaseVersion(saved.attributes.version)
         setHasConflict(false)
-        setSaveState('saved')
+        setHasSaved(true)
         showFeedback({ fieldErrors: {} })
         if (nextIntent === 'continue') {
+          // Navigating now must not be blocked by the pre-save state.
+          reportUnsavedChanges(false)
           onContinue()
         }
       },
@@ -147,21 +156,22 @@ export function ApplicationStepForm({
           name={field.name}
           onChange={(event) => {
             const { value } = event.target
-            setValues((current) => ({ ...current, [field.name]: value }))
-            markChanged()
+            setDraft((current) => ({
+              ...current,
+              values: { ...current.values, [field.name]: value },
+            }))
           }}
           type={field.type ?? 'text'}
-          value={values[field.name] ?? ''}
+          value={draft.values[field.name] ?? ''}
         />
       ))}
       {step === 'personal-details' ? (
         <Checkbox
-          isSelected={consentConfirmed}
+          isSelected={draft.consentConfirmed}
           name="consentConfirmed"
-          onChange={(isSelected) => {
-            setConsentConfirmed(isSelected)
-            markChanged()
-          }}
+          onChange={(isSelected) =>
+            updateDraft({ consentConfirmed: isSelected })
+          }
         >
           I confirm these details are accurate and belong to me.
         </Checkbox>
@@ -173,7 +183,7 @@ export function ApplicationStepForm({
         </Typography>
       )}
       <Typography className={styles.saveStatus} role="status">
-        {saveStatusText[saveState]}
+        {saveStatusText(hasUnsavedChanges, hasSaved)}
       </Typography>
       <Stack
         component="div"
@@ -201,19 +211,29 @@ export function ApplicationStepForm({
   )
 }
 
-const saveStatusText: Record<SaveState, string> = {
-  idle: '',
-  saved: 'Your answers have been saved.',
-  changed: 'You have unsaved changes.',
+function saveStatusText(hasUnsavedChanges: boolean, hasSaved: boolean) {
+  if (hasUnsavedChanges) {
+    return 'You have unsaved changes.'
+  }
+  return hasSaved ? 'Your answers have been saved.' : ''
 }
 
-function initialValues(
-  form: ApplicationForm,
-  step: ApplicationStep,
-): Partial<Record<TextAnswerName, string>> {
+function draftFrom(form: ApplicationForm, step: ApplicationStep): Draft {
   const { answers } = form.attributes
-  return Object.fromEntries(
-    stepFields[step].map(({ name }) => [name, answers[name] ?? '']),
+  return {
+    values: Object.fromEntries(
+      stepFields[step].map(({ name }) => [name, answers[name] ?? '']),
+    ),
+    consentConfirmed: answers.consentConfirmed ?? false,
+  }
+}
+
+function sameDraft(a: Draft, b: Draft): boolean {
+  return (
+    a.consentConfirmed === b.consentConfirmed &&
+    Object.entries(a.values).every(
+      ([name, value]) => b.values[name as TextAnswerName] === value,
+    )
   )
 }
 

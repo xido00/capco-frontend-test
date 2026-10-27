@@ -9,7 +9,7 @@ import {
   Typography,
 } from '@kyc/ui'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { data, useLocation, useNavigate } from 'react-router'
 
 import { ApplicationPageState } from '../-application-page-state'
@@ -56,8 +56,18 @@ function StepPage({
   const form = useQuery(applicationFormQuery(applicationId))
   // Remounts the form so a reload replaces local edits with the saved answers.
   const [revision, setRevision] = useState(0)
+  const headingRef = useRef<HTMLElement>(null)
   const stepIndex = stepOrder.indexOf(step)
   const title = stepTitles[step]
+  const isReady = form.isSuccess
+
+  // The form is replaced on a new step or reload; without this, focus falls to
+  // the document body and screen reader users are not told where they are.
+  useEffect(() => {
+    if (isReady) {
+      headingRef.current?.focus()
+    }
+  }, [isReady, step, revision])
 
   if (form.isPending) {
     return (
@@ -88,7 +98,12 @@ function StepPage({
           <Typography component="p" variant="eyebrow" tone="accent">
             Step {stepIndex + 1} of {stepOrder.length}
           </Typography>
-          <Typography component="h1" variant="heading">
+          <Typography
+            component="h1"
+            variant="heading"
+            ref={headingRef}
+            tabIndex={-1}
+          >
             {title}
           </Typography>
           <Typography tone="muted">

@@ -1,0 +1,35 @@
+.overlay {
+  align-items: center;
+  background: #172b4d80;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 16px;
+  position: fixed;
+  z-index: 100;
+}
+.modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px #172b4d40;
+  max-width: 440px;
+  width: 100%;
+}
+.dialog {
+  color: #172b4d;
+  outline: none;
+  padding: 24px;
+}
+.title {
+  font-size: 1.25rem;
+  margin: 0 0 8px;
+}
+.body {
+  margin-bottom: 24px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-end;
+}

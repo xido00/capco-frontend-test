@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
+import { RouterProvider } from 'react-aria-components'
 import {
   isRouteErrorResponse,
   Links,
@@ -7,11 +8,20 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useHref,
+  useNavigate,
   useRouteError,
+  type NavigateOptions,
 } from 'react-router'
 
 import { ApiError } from './api/api-error'
 import './styles.css'
+
+declare module 'react-aria-components' {
+  interface RouterConfig {
+    routerOptions: NavigateOptions
+  }
+}
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -41,9 +51,16 @@ export default function App() {
         },
       }),
   )
+  const navigate = useNavigate()
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      {/* DS links (React Aria) navigate client-side instead of reloading the app. */}
+      <RouterProvider
+        navigate={(href, options) => void navigate(href, options)}
+        useHref={useHref}
+      >
+        <Outlet />
+      </RouterProvider>
     </QueryClientProvider>
   )
 }

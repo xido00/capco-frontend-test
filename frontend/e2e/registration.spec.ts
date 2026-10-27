@@ -23,6 +23,16 @@ test('applicant creates an account and cannot register the same email twice', as
     '/sign-in?returnTo=%2Fapplications%2Fcurrent',
   )
 
+  // DS links use client-side navigation: a full reload would drop this marker.
+  await page.evaluate(() => {
+    ;(window as { spaMarker?: boolean }).spaMarker = true
+  })
+  await page.getByRole('link', { name: 'Sign in' }).click()
+  await expect(page).toHaveURL('/sign-in?returnTo=%2Fapplications%2Fcurrent')
+  expect(
+    await page.evaluate(() => (window as { spaMarker?: boolean }).spaMarker),
+  ).toBe(true)
+
   await register()
   await expect(page.getByRole('alert')).toContainText(
     'An account already exists for this email address.',
