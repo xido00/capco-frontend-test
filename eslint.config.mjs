@@ -99,7 +99,6 @@ export default defineConfig([
       parserOptions: {
         projectService: {
           allowDefaultProject: [
-            'frontend/e2e/*.ts',
             'frontend/playwright.config.ts',
             'frontend/vitest.config.ts',
           ],
