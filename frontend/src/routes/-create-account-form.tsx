@@ -19,10 +19,10 @@ import { formLevelMessage } from './-account-access-feedback'
 import {
   passwordGuidance,
   validateRegistration,
-  type RegistrationErrors,
   type RegistrationField,
   type RegistrationValues,
 } from './-applicant-credentials'
+import { useFormFeedback, type FormFeedback } from './-form-feedback'
 import { accountAccessHref } from './-return-target'
 import styles from './account-access.module.css'
 
@@ -36,12 +36,6 @@ const fieldIds: Record<RegistrationField, string> = {
   password: 'applicant-password',
   confirmPassword: 'applicant-confirm-password',
 }
-const fieldOrder = Object.keys(fieldIds) as RegistrationField[]
-
-interface Feedback {
-  fieldErrors: RegistrationErrors
-  message?: string
-}
 
 export function CreateAccountForm({
   onNavigate,
@@ -52,23 +46,13 @@ export function CreateAccountForm({
     password: '',
     confirmPassword: '',
   })
-  const [fieldErrors, setFieldErrors] = useState<RegistrationErrors>({})
-  // Snapshot from the last submit: the summary is a live region, so it must not change while typing.
-  const [summary, setSummary] = useState<Feedback>()
+  const { fieldErrors, setFieldErrors, showFeedback, summaryProps } =
+    useFormFeedback(fieldIds)
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [createdEmail, setCreatedEmail] = useState<string>()
-  const summaryRef = useRef<HTMLDivElement>(null)
   const successHeadingRef = useRef<HTMLHeadingElement>(null)
   const registration = useMutation({ mutationFn: createApplicantAccount })
   const signInHref = accountAccessHref('/sign-in', returnTo)
-
-  function showFeedback(feedback: Feedback) {
-    flushSync(() => {
-      setFieldErrors(feedback.fieldErrors)
-      setSummary(feedback)
-    })
-    summaryRef.current?.focus()
-  }
 
   function update(field: RegistrationField, value: string) {
     const next = { ...values, [field]: value }
@@ -162,14 +146,7 @@ export function CreateAccountForm({
                   Create credentials to begin your KYC application.
                 </Typography>
               </Stack>
-              <ErrorSummary
-                ref={summaryRef}
-                message={summary?.message}
-                errors={fieldOrder.flatMap((field) => {
-                  const message = summary?.fieldErrors[field]
-                  return message ? [{ fieldId: fieldIds[field], message }] : []
-                })}
-              />
+              <ErrorSummary {...summaryProps} />
               <TextField
                 autoComplete="email"
                 errorMessage={fieldErrors.email}
@@ -238,7 +215,7 @@ export function CreateAccountForm({
   )
 }
 
-function feedbackFor(error: Error): Feedback {
+function feedbackFor(error: Error): FormFeedback<RegistrationField> {
   if (error instanceof ApiError) {
     const { failure } = error
     if (failure.kind === 'conflict') {
