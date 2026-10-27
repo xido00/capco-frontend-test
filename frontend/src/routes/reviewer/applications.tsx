@@ -15,7 +15,7 @@ import {
   TextField,
   Typography,
 } from '@kyc/ui'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { z } from 'zod'
 
@@ -435,7 +435,12 @@ export default function ReviewerApplicationsPage({
   const navigate = useNavigate()
   const { q, status, page, response } = loaderData
   const [searchValue, setSearchValue] = useState(q)
-  useEffect(() => setSearchValue(q), [q])
+  // Resync the input when the URL query changes (e.g. back/forward navigation).
+  const [syncedQ, setSyncedQ] = useState(q)
+  if (q !== syncedQ) {
+    setSyncedQ(q)
+    setSearchValue(q)
+  }
   const updateSearch = (next: {
     q?: string
     status?: ReviewerApplicationStatus
