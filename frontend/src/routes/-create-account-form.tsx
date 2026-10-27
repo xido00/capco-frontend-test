@@ -27,7 +27,6 @@ import { accountAccessHref } from './-return-target'
 import styles from './account-access.module.css'
 
 export interface CreateAccountFormProps {
-  onNavigate?: (href: string) => void
   returnTo?: string
 }
 
@@ -37,10 +36,7 @@ const fieldIds: Record<RegistrationField, string> = {
   confirmPassword: 'applicant-confirm-password',
 }
 
-export function CreateAccountForm({
-  onNavigate,
-  returnTo,
-}: CreateAccountFormProps) {
+export function CreateAccountForm({ returnTo }: CreateAccountFormProps) {
   const [values, setValues] = useState<RegistrationValues>({
     email: '',
     password: '',
@@ -93,15 +89,6 @@ export function CreateAccountForm({
     )
   }
 
-  function navigateTo(href: string) {
-    return (event: { preventDefault: () => void }) => {
-      if (onNavigate) {
-        event.preventDefault()
-        onNavigate(href)
-      }
-    }
-  }
-
   return (
     <main className={styles.page}>
       <Card className={styles.card}>
@@ -120,11 +107,7 @@ export function CreateAccountForm({
                 Your account for {createdEmail} is ready. Sign in to start your
                 KYC application.
               </Typography>
-              <Link
-                className={styles.primaryLink}
-                href={signInHref}
-                onClick={navigateTo(signInHref)}
-              >
+              <Link className={styles.primaryLink} href={signInHref}>
                 Sign in
               </Link>
             </Stack>
@@ -203,9 +186,7 @@ export function CreateAccountForm({
                 variant="caption"
               >
                 <span>Already have an account? </span>
-                <Link href={signInHref} onClick={navigateTo(signInHref)}>
-                  Sign in
-                </Link>
+                <Link href={signInHref}>Sign in</Link>
               </Typography>
             </Stack>
           )}

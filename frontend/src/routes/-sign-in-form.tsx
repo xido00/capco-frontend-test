@@ -8,7 +8,7 @@ import {
   TextField,
   Typography,
 } from '@kyc/ui'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
 import { ApiError, fieldErrorsByAttribute } from '../api/api-error'
@@ -25,7 +25,6 @@ import { accountAccessHref, isSafeJourneyPath } from './-return-target'
 import styles from './account-access.module.css'
 
 export interface SignInFormProps {
-  onNavigate?: (href: string) => void
   returnTo?: string
   /** Receives the journey URL to continue at after the session is established. */
   onSuccess: (href: string) => void
@@ -41,11 +40,7 @@ const invalidCredentialsMessage =
   'The email address or password is incorrect. Check them and try again.'
 const defaultJourney = '/applications/current'
 
-export function SignInForm({
-  onNavigate,
-  returnTo,
-  onSuccess,
-}: SignInFormProps) {
+export function SignInForm({ returnTo, onSuccess }: SignInFormProps) {
   const [values, setValues] = useState<SignInValues>({
     email: '',
     password: '',
@@ -53,6 +48,7 @@ export function SignInForm({
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const { fieldErrors, setFieldErrors, showFeedback, summaryProps } =
     useFormFeedback(fieldIds)
+  const queryClient = useQueryClient()
   const signIn = useMutation({ mutationFn: createApplicantSession })
   const createAccountHref = accountAccessHref('/create-account', returnTo)
 
@@ -81,6 +77,8 @@ export function SignInForm({
       { email: values.email.trim(), password: values.password },
       {
         onSuccess: (href) => {
+          // A new session may belong to someone else: drop data cached for the previous one.
+          queryClient.removeQueries()
           // The API only returns local journey paths; guard against open redirects anyway.
           onSuccess(isSafeJourneyPath(href) ? href : defaultJourney)
         },
@@ -155,17 +153,7 @@ export function SignInForm({
               variant="caption"
             >
               <span>New to KYC? </span>
-              <Link
-                href={createAccountHref}
-                onClick={(event) => {
-                  if (onNavigate) {
-                    event.preventDefault()
-                    onNavigate(createAccountHref)
-                  }
-                }}
-              >
-                Create account
-              </Link>
+              <Link href={createAccountHref}>Create account</Link>
             </Typography>
           </Stack>
         </CardContent>
