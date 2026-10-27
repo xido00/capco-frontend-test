@@ -58,3 +58,14 @@ This project was built with Claude Code as a pair programmer. This log records h
   - A test helper was committed after lint and tests but without typecheck. Fixed in a follow-up commit; since then `npm run quality` runs before every commit.
   - The abort check used `instanceof DOMException`, which fails across realms (fetch vs jsdom); a unit test caught it.
 - **Verification:** unit tests for every acceptance criterion and error path (load, save, version, conflict, 401/403/422, sign-out), axe checks, and an e2e test that saves, signs out, signs in and finds every answer through the real API.
+
+### Self-review before merge
+
+- **Request:** I asked the AI to review the whole change set as a senior frontend developer.
+- **Findings I chose to fix now:**
+  - unsaved edits were lost without warning;
+  - focus fell to the page body after changing step;
+  - DS links reloaded the whole app.
+- **Findings left for discussion:** central 401 handling for queries, `clientLoader` instead of in-component queries, a draft hook, shared typed test fixtures, axe in Playwright.
+- **Design detail:** the unsaved-changes guard lives in the applications layout, not the form, so "Sign out" asks before revoking the session. Client-side links meant the query cache now survives re-login, so sign-in clears it.
+- **Verification:** the focus tests were checked to fail with the fix disabled. One `npm run quality` run failed and could not be reproduced in 2 full and 8 test-only reruns, and its log was not kept. Watching CI for a flaky test.
