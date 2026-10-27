@@ -138,6 +138,7 @@ type TypographyProps = Omit<
     'display' | 'heading' | 'subheading' | 'body' | 'caption' | 'eyebrow'
   tone?: 'default' | 'muted' | 'accent'
   align?: 'left' | 'center' | 'right'
+  ref?: Ref<HTMLElement>
 }
 const defaultElementTypes = {
   display: 'h1',
