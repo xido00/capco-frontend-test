@@ -14,6 +14,9 @@ export default defineConfig({
     },
   },
   server: {
+    // The README links to 127.0.0.1. Vite's default `localhost` binds IPv6 only
+    // on recent macOS and Node, so that address refused connections.
+    host: '127.0.0.1',
     proxy: {
       '/api/v1': backendTarget,
       '^/reviewer$': backendTarget,

@@ -108,6 +108,8 @@ For macOS, `/usr/libexec/java_home -v 25` can provide the JDK path when JDK 25 i
 
 The launcher creates `backend/data/` for the local SQLite database. Open the frontend at [http://127.0.0.1:3000](http://127.0.0.1:3000). The backend listens at [http://127.0.0.1:8080](http://127.0.0.1:8080). Press `Ctrl+C` in the launcher terminal to stop both services.
 
+The API issues session cookies with the `Secure` attribute (required for the `__Host-` session cookie), even in development. Chromium-based browsers (verified with Chrome and Brave) accept them on `http://127.0.0.1` and `http://localhost`. Browsers that drop `Secure` cookies on plain HTTP, as Safari is known to, make sign-in appear to succeed while the next page reports an expired session. Use a Chromium-based browser locally.
+
 ## Development commands
 
 Run from the repository root:
