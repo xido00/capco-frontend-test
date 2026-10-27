@@ -39,3 +39,9 @@ This project was built with Claude Code as a pair programmer. This log records h
   - zod object-level `refine` skips when any field fails, which would hide "Passwords do not match". Rewritten to validate fields independently, with a test.
   - Two failing tests were test bugs, not form bugs: email inputs strip whitespace by spec, and React Aria's live announcer leaves nodes in `<body>` between tests, so axe now scans the form container.
 - **Verification:** unit tests for validation and every API outcome (MSW), axe checks, and an e2e test that registers twice against the real backend.
+
+### Sign-in (TICKET-002)
+
+- **AI proposal I accepted:** after sign-in, always continue at the journey URL from the API, not `returnTo`. The API knows the Applicant's current step, which also covers returning after an expired session in TICKET-003. The URL is still checked as a local journey path.
+- **Refactor before the second form:** registration and sign-in share error handling, so it moved into `useFormFeedback` first, in its own commit, with registration tests unchanged.
+- **Verification:** unit tests for every API outcome and the pending state, axe checks, and e2e tests that check the stored session cookies and the invalid-credentials path against the real backend.
