@@ -22,7 +22,12 @@ import styles from '../application-step.module.css'
 
 import { applicationQueryKeys } from './-queries'
 import { isSessionExpired, SessionExpiredMessage } from './-session'
-import { stepFields } from './-step-fields'
+import {
+  stepFields,
+  validateStepField,
+  validateStepValues,
+  type TextAnswerName,
+} from './-step-fields'
 import { useReportUnsavedChanges } from './-unsaved-changes'
 import { answersFor, useStepDraft } from './-use-step-draft'
 
@@ -40,8 +45,6 @@ export interface ApplicationStepFormProps {
 }
 
 type SaveIntent = 'save' | 'continue'
-
-const noFieldIds: Record<never, string> = {}
 
 export function ApplicationStepForm({
   applicationId,
@@ -65,7 +68,11 @@ export function ApplicationStepForm({
   } = useStepDraft(form, step)
   const [intent, setIntent] = useState<SaveIntent>('save')
   const [hasConflict, setHasConflict] = useState(false)
-  const { showFeedback, summaryProps } = useFormFeedback(noFieldIds)
+  const fieldIds = Object.fromEntries(
+    fields.map(({ name }) => [name, fieldId(name)]),
+  ) as Record<TextAnswerName, string>
+  const { fieldErrors, setFieldErrors, showFeedback, summaryProps } =
+    useFormFeedback(fieldIds)
   const reportUnsavedChanges = useReportUnsavedChanges(hasUnsavedChanges)
   const save = useMutation({
     mutationFn: (answers: ApplicationAnswers) =>
@@ -80,6 +87,11 @@ export function ApplicationStepForm({
 
   function submit(nextIntent: SaveIntent) {
     if (save.isPending) {
+      return
+    }
+    const errors = validateStepValues(step, draft.values)
+    if (Object.keys(errors).length > 0) {
+      showFeedback({ fieldErrors: errors })
       return
     }
     setIntent(nextIntent)
@@ -137,11 +149,22 @@ export function ApplicationStepForm({
           autoComplete={field.autoComplete ?? 'off'}
           description={field.description}
           fullWidth
-          id={`answer-${field.name}`}
+          errorMessage={fieldErrors[field.name]}
+          id={fieldId(field.name)}
           key={field.name}
           label={field.label}
           name={field.name}
-          onChange={(event) => setValue(field.name, event.target.value)}
+          onChange={(event) => {
+            const { value } = event.target
+            setValue(field.name, value)
+            if (fieldErrors[field.name]) {
+              // Clear or update the error as soon as the answer is corrected.
+              setFieldErrors((current) => ({
+                ...current,
+                [field.name]: validateStepField(field, value),
+              }))
+            }
+          }}
           type={field.type ?? 'text'}
           value={draft.values[field.name] ?? ''}
         />
@@ -195,6 +218,10 @@ function saveStatusText(hasUnsavedChanges: boolean, hasSaved: boolean) {
     return 'You have unsaved changes.'
   }
   return hasSaved ? 'Your answers have been saved.' : ''
+}
+
+function fieldId(name: TextAnswerName): string {
+  return `answer-${name}`
 }
 
 function saveErrorMessage(error: Error, pathname: string): ReactNode {

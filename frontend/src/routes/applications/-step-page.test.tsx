@@ -336,6 +336,61 @@ describe('Application step page', () => {
     },
   )
 
+  it.each(['10/12/1815', '2024-02-30'])(
+    'does not save the date of birth %s and explains the expected format',
+    async (date) => {
+      let saves = 0
+      server.use(
+        http.get(formPath, () => jsonApiResponse(formDocument())),
+        http.patch(formPath, () => {
+          saves += 1
+          return jsonApiResponse(formDocument({ version: 5 }))
+        }),
+      )
+      const { user } = renderStep()
+      const dateOfBirth = await screen.findByRole('textbox', {
+        name: 'Date of birth',
+      })
+      await user.clear(dateOfBirth)
+      await user.type(dateOfBirth, date)
+
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+
+      const message =
+        'Enter date of birth as a real date in the format YYYY-MM-DD, like 1990-04-27'
+      expect(screen.getByRole('link', { name: message })).toHaveAttribute(
+        'href',
+        '#answer-dateOfBirth',
+      )
+      expect(dateOfBirth).toHaveAttribute('aria-invalid', 'true')
+      expect(dateOfBirth).toHaveAccessibleDescription(
+        `For example, 1990-04-27 ${message}`,
+      )
+      expect(saves).toBe(0)
+
+      await user.clear(dateOfBirth)
+      await user.type(dateOfBirth, '1815-12-10')
+      expect(dateOfBirth).not.toHaveAttribute('aria-invalid')
+    },
+  )
+
+  it('saves a draft with an empty date', async () => {
+    server.use(
+      http.get(formPath, () => jsonApiResponse(formDocument())),
+      http.patch(formPath, () => jsonApiResponse(formDocument({ version: 5 }))),
+    )
+    const { user } = renderStep()
+    await user.clear(
+      await screen.findByRole('textbox', { name: 'Date of birth' }),
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(
+      await screen.findByText('Your answers have been saved.'),
+    ).toBeInTheDocument()
+  })
+
   it('shows a clear message when the API rejects the answers', async () => {
     server.use(
       http.get(formPath, () => jsonApiResponse(formDocument())),
